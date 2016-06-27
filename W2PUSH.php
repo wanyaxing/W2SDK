@@ -24,6 +24,8 @@ class W2PUSH {
 
 	/**
 	 * 获得推送对象
+	 * @param  int $device_type  3安卓  4iOS
+	 * @return XingeApp
 	 */
 	public static function getPush($device_type)
 	{
@@ -50,10 +52,10 @@ class W2PUSH {
 		{
 			AX_DEBUG($push);
 		}
-		if ($push == null)
-		{
-			throw new Exception('推送对象获取失败，无法创建推送任务。');
-		}
+		// if ($push == null)
+		// {
+		// 	throw new Exception('推送对象获取失败，无法创建推送任务。');
+		// }
 		return $push;
 	}
 
@@ -63,6 +65,7 @@ class W2PUSH {
 	public static function QueryInfoOfToken($p_deviceToken,$device_type)
 	{
 		$push = static::getPush($device_type);
+		if (!isset($push)){return false;}
 		return $push->QueryInfoOfToken($p_deviceToken);
 	}
 
@@ -72,20 +75,21 @@ class W2PUSH {
 	public static function queryTokenTags($p_deviceToken,$device_type)
 	{
 		$push = static::getPush($device_type);
+		if (!isset($push)){return false;}
 		// var_export($device_type);
 		$ret = $push->QueryTokenTags($p_deviceToken);
 		if (is_array($ret) && array_key_exists('result', $ret)&& array_key_exists('tags', $ret['result']))
 		{
 			return $ret['result']['tags'];
 		}
-		return null;
+		return array();
 	}
 
 	/**
 	 * 以keyvalue的组合方式来重设tag，（先删除已有的keyvalue)
      * @param  string  $p_deviceTokens 用户推送ID，百度里是buserid，支持数组或逗号隔开的字符串
      * @param  int   $device_type 设备类型 1：浏览器设备 2：pc设备 3：Android设备 4：ios设备 5：windows phone设备
-	 * @param string $tag_key        key
+	 * @param string $tag_key        key (指定前缀，如设定sex_1,sex_2，则此处key为sex，values为1,2)
 	 * @param string $tag_values     value值，若为空，则删除所有key数据
 	 */
 	public static function BatchSetTagValue($p_deviceTokens,$device_type,$tag_key,$tag_values)
@@ -124,19 +128,20 @@ class W2PUSH {
 	/**
 	 * 批量为token添加标签 (信鸽独有)
 	 */
-	public static function BatchAddTag($p_deviceTokens,$device_type,$tag_names)
+	public static function BatchAddTag($p_deviceTokens,$device_type,$tagNames)
 	{
 		$push = static::getPush($device_type);
+		if (!isset($push)){return false;}
 		$pairs = array();
 		$p_deviceTokens = is_array($p_deviceTokens)?$p_deviceTokens:explode(',',$p_deviceTokens);
-		$tag_names      = is_array($tag_names)?$tag_names:explode(',',$tag_names);
+		$tagNames      = is_array($tagNames)?$tagNames:explode(',',$tagNames);
 		foreach ($p_deviceTokens as $p_deviceToken) {
 			if ($p_deviceToken != null)
 			{
-				foreach ($tag_names as $tag_name) {
-					if ($tag_name!=null)
+				foreach ($tagNames as $tagName) {
+					if ($tagName!=null)
 					{
-						array_push($pairs,new TagTokenPair($tag_name,$p_deviceToken));
+						array_push($pairs,new TagTokenPair($tagName,$p_deviceToken));
 					}
 				}
 			}
@@ -147,7 +152,7 @@ class W2PUSH {
 		{
 			$ret[] = array(
 						'action'=>'BatchSetTag(add)'
-						,'ret'=>$push->BatchSetTag(array_slice($p_deviceTokens,$i, $maxCount))
+						,'ret'=>$push->BatchSetTag(array_slice($pairs,$i, $maxCount))
 						);
 		}
 		return $ret;
@@ -157,19 +162,20 @@ class W2PUSH {
 	/**
 	 * 批量为token删除标签 (信鸽独有)
 	 */
-	public static function BatchDelTag($p_deviceTokens,$device_type,$tag_names)
+	public static function BatchDelTag($p_deviceTokens,$device_type,$tagNames)
 	{
 		$push = static::getPush($device_type);
+		if (!isset($push)){return false;}
 		$pairs = array();
 		$p_deviceTokens = is_array($p_deviceTokens)?$p_deviceTokens:explode(',',$p_deviceTokens);
-		$tag_names      = is_array($tag_names)?$tag_names:explode(',',$tag_names);
+		$tagNames      = is_array($tagNames)?$tagNames:explode(',',$tagNames);
 		foreach ($p_deviceTokens as $p_deviceToken) {
 			if ($p_deviceToken != null)
 			{
-				foreach ($tag_names as $tag_name) {
-					if ($tag_name!=null)
+				foreach ($tagNames as $tagName) {
+					if ($tagName!=null)
 					{
-						array_push($pairs,new TagTokenPair($tag_name,$p_deviceToken));
+						array_push($pairs,new TagTokenPair($tagName,$p_deviceToken));
 					}
 				}
 			}
@@ -179,8 +185,8 @@ class W2PUSH {
 		for ($i=0; $i < count($pairs) ; $i+= $maxCount)
 		{
 			$ret[] = array(
-						'action'=>'BatchDelTag(add)'
-						,'ret'=>$push->BatchDelTag(array_slice($p_deviceTokens,$i, $maxCount))
+						'action'=>'BatchDelTag(del)'
+						,'ret'=>$push->BatchDelTag(array_slice($pairs,$i, $maxCount))
 						);
 		}
 		return $ret;
@@ -195,17 +201,18 @@ class W2PUSH {
      * @param  int     $customtype   自定义类型,t
      * @param  string  $customvalue  自定义值,v
      * @param  string  $p_deviceTokens 用户推送ID，百度里是buserid
-     * @param  string  $tag_name     指定标签
+     * @param  string  $tagList     指定标签(单个或多个，数组或用逗号隔开)
      * @param  int     $deploy_status     1是开发模式  2是正式环境
      * @return array                 results
      */
-    public static function pushMessage($push_type ,$device_type , $title='', $content,$customtype=null,$customvalue = null ,$p_deviceTokens=null ,$tag_name=null,$deploy_status=2,$isSound=true,$isShake=true)
+    public static function pushMessage($push_type ,$device_type , $title='', $content,$customtype=null,$customvalue = null ,$p_deviceTokens=null ,$tagList=null,$deploy_status=2,$isSound=true,$isShake=true)
     {
 		$push = null;
 		$mess = null;
 
 		/** @var XingeApp */
 		$push = static::getPush($device_type);
+		if (!isset($push)){return false;}
 		if ($device_type==4) //IOS 推送
 		{
 			$mess = new MessageIOS();
@@ -214,7 +221,7 @@ class W2PUSH {
 			$mess->setAlert($content);
 			//$mess->setAlert(array('key1'=>'value1'));
 			$mess->setBadge(0);
-			$mess->setSound('');
+			$mess->setSound($isSound?'default':'');
 			if (isset($customtype,$customvalue))
 			{
 				$custom = array('t'=>intval($customtype), 'v'=>$customvalue);
@@ -231,7 +238,7 @@ class W2PUSH {
 			$mess->setExpireTime(86400);
 			//$style = new Style(0);
 			#含义：样式编号0，响铃，震动，不可从通知栏清除，不影响先前通知
-			$style = new Style(0,($isSound?1:0),($isShake?1:0),0,0);
+			$style = new Style(0,($isSound?1:0),($isShake?1:0),1,0);
 			$mess->setStyle($style);
 
 			$action = new ClickAction();
@@ -251,6 +258,33 @@ class W2PUSH {
 		}
 		$params['production_mode']= $deploy_status==2;//是否正式环境
 
+		if (!is_null($tagList))
+		{
+			$tagsOp = 'AND';
+			if (is_string($tagList))
+			{
+				if (strpos($tagList,'&')!==false)
+				{
+					$tagList = explode('&',$tagList);
+				}
+				else if (strpos($tagList,'|')!==false)
+				{
+					$tagsOp = 'OR';
+					$tagList = explode('|',$tagList);
+				}
+				else
+				{
+					$tagList = explode(',',$tagList);
+				}
+			}
+			if (count($tagList)==1)
+			{
+				$tagsOp = 'OR';
+			}
+		}
+
+		$environment = $device_type==3?0:($deploy_status==2? XingeApp::IOSENV_PROD : XingeApp::IOSENV_DEV);
+
 		$ret = array();
     	switch($push_type)
     	{
@@ -263,7 +297,7 @@ class W2PUSH {
     			}
     			if (count($p_deviceTokens)>5)//设备多的话，就用大批量推送
     			{
-    				$retMulti = $push->CreateMultipush($mess,$device_type==3?0:($deploy_status==2? XingeApp::IOSENV_PROD : XingeApp::IOSENV_DEV));
+    				$retMulti = $push->CreateMultipush($mess,$environment);
 					$ret[] = array(
 								'action'=>'CreateMultipush'
 								,'ret'=>$retMulti
@@ -285,48 +319,38 @@ class W2PUSH {
     			else//设备少的话，就单独推送吧
     			{
 	    			foreach ($p_deviceTokens as $token) {
-	    				if ($device_type==4) //IOS 推送
-	    				{
-	    					$ret[] = array(
-	    								'action'=>'PushSingleDevice'
-	    								,'token'=>$token
-	    								,'device_type'=>$device_type
-	    								,'ret'=>$push->PushSingleDevice($token, $mess,$deploy_status==2? XingeApp::IOSENV_PROD : XingeApp::IOSENV_DEV)
-	    								);
-	    				}
-						else if ($device_type==3) //安卓推送
-						{
-
-							$ret[] = array(
-										'action'=>'PushSingleDevice'
-										,'token'=>$token
-										,'device_type'=>$device_type
-										,'ret'=>$push->PushSingleDevice($token, $mess)
-										);
-						}
+    					$ret[] = array(
+    								'action'=>'PushSingleDevice'
+    								,'token'=>$token
+    								,'device_type'=>$device_type
+    								,'ret'=>$push->PushSingleDevice($token, $mess,$environment)
+									,'environment'=>$environment
+    								);
 	    			}
     			}
 
     			break;
     		case 2://指定设备群发
-				if ($device_type==4) //IOS 推送
-				{
+    			if (!is_null($tagList))
+    			{
+					$ret[] = array(
+								'action'=>'PushTags'
+								,'token'=>'0'
+								,'device_type'=>$device_type
+								,'ret'=>$push->PushTags(0, $tagList,$tagsOp,$mess,$environment)
+								,'environment'=>$environment
+							);
+    			}
+    			else
+    			{
 					$ret[] = array(
 								'action'=>'PushAllDevices'
 								,'token'=>'0'
 								,'device_type'=>$device_type
-								,'ret'=>$push->PushAllDevices(0, $mess,$deploy_status==2? XingeApp::IOSENV_PROD : XingeApp::IOSENV_DEV)
+								,'ret'=>$push->PushAllDevices(0, $mess, $environment)
+								,'environment'=>$environment
 							);
-				}
-				else if ($device_type==3) //安卓推送
-				{
-					$ret[] = array(
-								'action'=>'PushAllDevices'
-								,'token'=>'0'
-								,'device_type'=>$device_type
-								,'ret'=>$push->PushAllDevices(0, $mess)
-							);
-				}
+    			}
     			break;
     		default:
     			throw new Exception('push_type 1:单个人 2部分人 3所有人');

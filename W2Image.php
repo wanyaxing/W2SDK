@@ -196,7 +196,7 @@ class W2Image {
     {
         $ni = imagecreate($dstW,$dstH);
        imagecopyresized($ni,$im,0,0,0,0,$dstW,$dstH,$srcW,$srcH);
-    }    
+    }
     switch($data[2]) {
         case 3:
             imagepng($ni, $photo_small, intval($p_quality/10));
@@ -207,7 +207,7 @@ class W2Image {
         case 2:
             imagejpeg($ni, $photo_small, $p_quality);
             break;
-    }    
+    }
     // imagecopyresized($ni,$im,0,0,0,0,$dstW,$dstH,$srcW,$srcH);
     // ImageJpeg($ni,$photo_small,100);
     //ImageJpeg($ni); //在显示图片时用，把注释取消，可以直接在页面显示出图片。
@@ -231,7 +231,7 @@ class W2Image {
         $im=imagecreatefromjpeg($src_imagename);
         $current_width = imagesx($im);
         $current_height = imagesy($im);
-     
+
         if(($maxwidth && $current_width > $maxwidth) || ($maxheight && $current_height > $maxheight))
         {
             if($maxwidth && $current_width>$maxwidth)
@@ -239,13 +239,13 @@ class W2Image {
                 $widthratio = $maxwidth/$current_width;
                 $resizewidth_tag = true;
             }
-     
+
             if($maxheight && $current_height>$maxheight)
             {
                 $heightratio = $maxheight/$current_height;
                 $resizeheight_tag = true;
             }
-     
+
             if($resizewidth_tag && $resizeheight_tag)
             {
                 if($widthratio<$heightratio)
@@ -253,15 +253,15 @@ class W2Image {
                 else
                     $ratio = $heightratio;
             }
-     
+
             if($resizewidth_tag && !$resizeheight_tag)
                 $ratio = $widthratio;
             if($resizeheight_tag && !$resizewidth_tag)
                 $ratio = $heightratio;
-     
+
             $newwidth = $current_width * $ratio;
             $newheight = $current_height * $ratio;
-     
+
             if(function_exists("imagecopyresampled"))
             {
                 $newim = imagecreatetruecolor($newwidth,$newheight);
@@ -272,7 +272,7 @@ class W2Image {
                 $newim = imagecreate($newwidth,$newheight);
                imagecopyresized($newim,$im,0,0,0,0,$newwidth,$newheight,$current_width,$current_height);
             }
-     
+
             $savename = $savename.$filetype;
             imagejpeg($newim,$savename);
             imagedestroy($newim);
@@ -281,7 +281,137 @@ class W2Image {
         {
             $savename = $savename.$filetype;
             imagejpeg($im,$savename);
-        }          
+        }
+    }
+
+    /**
+     * 画一条粗线
+     * @param  [type]  $image [description]
+     * @param  [type]  $x1    [description]
+     * @param  [type]  $y1    [description]
+     * @param  [type]  $x2    [description]
+     * @param  [type]  $y2    [description]
+     * @param  [type]  $color [description]
+     * @param  integer $thick [description]
+     * @return [type]         [description]
+     */
+    public static function imagelinethick($image, $x1, $y1, $x2, $y2, $color, $thick = 1)
+    {
+        /* 下面两行只在线段直角相交时好使
+        imagesetthickness($image, $thick);
+        return imageline($image, $x1, $y1, $x2, $y2, $color);
+        */
+        if ($thick == 1) {
+            return imageline($image, $x1, $y1, $x2, $y2, $color);
+        }
+        $t = $thick / 2 - 0.5;
+        if ($x1 == $x2 || $y1 == $y2) {
+            return imagefilledrectangle($image, round(min($x1, $x2) - $t), round(min($y1, $y2) - $t), round(max($x1, $x2) + $t), round(max($y1, $y2) + $t), $color);
+        }
+        $k = ($y2 - $y1) / ($x2 - $x1); //y = kx + q
+        $a = $t / sqrt(1 + pow($k, 2));
+        $points = array(
+            round($x1 - (1+$k)*$a), round($y1 + (1-$k)*$a),
+            round($x1 - (1-$k)*$a), round($y1 - (1+$k)*$a),
+            round($x2 + (1+$k)*$a), round($y2 - (1-$k)*$a),
+            round($x2 + (1-$k)*$a), round($y2 + (1+$k)*$a),
+        );
+        imagefilledpolygon($image, $points, 4, $color);
+        return imagepolygon($image, $points, 4, $color);
+    }
+    /**
+     * 计算文本画布的真实坐标（因为默认的imagettfbbox方法在旋转角度后，产生的是文本四个角的坐标，而不是画布坐标）
+     * @param  int    $fontSize     字体大小
+     * @param  int    $fontAngle    角度 0，90，180，360
+     * @param  string $fontFile     字体文件
+     * @param  string $text         文本
+     * @return array                坐标系
+     */
+    public static function calculateTextBox($fontSize,$fontAngle,$fontFile,$text) {
+        $rect = imagettfbbox($fontSize,$fontAngle,$fontFile,$text);
+        $minX = min(array($rect[0],$rect[2],$rect[4],$rect[6]));
+        $maxX = max(array($rect[0],$rect[2],$rect[4],$rect[6]));
+        $minY = min(array($rect[1],$rect[3],$rect[5],$rect[7]));
+        $maxY = max(array($rect[1],$rect[3],$rect[5],$rect[7]));
+
+        return array(
+         "left"   => $minX,
+         "top"    => $minY,
+         "width"  => $maxX - $minX,
+         "height" => $maxY - $minY,
+         "box"    => $rect
+        );
+    }
+
+    /**
+     * 根据随机码生成图片对象
+     * @param  [type] $code                [description]
+     * @param  [type] $image_width         [description]
+     * @param  [type] $image_height        [description]
+     * @return [type]                      [description]
+     */
+    public static function captchaImage($code,$image_width=100,$image_height=40,$random_dots=10,$random_lines=5)
+    {
+        $font = __dir__.'/monofont.ttf';
+
+        /*字体大小*/
+        $font_size = $image_height * 0.8;
+
+        /*画布：初始化背景图*/
+        $image = @imagecreate($image_width, $image_height);
+
+        /* 设置背景色 */
+        $background_color = imagecolorallocate($image, 255, 255, 255);
+
+        /** 文本色 */
+        $text_color = imagecolorallocate($image, 0, 160, 233);
+
+        /** 干扰色 */
+        $image_noise_color = imagecolorallocate($image,0, 160, 233);
+
+        /* 在背景上随机的生成干扰噪点 */
+        for( $i=0; $i<$random_dots; $i++ ) {
+            imagefilledellipse($image, mt_rand(0,$image_width), mt_rand(0,$image_height), 4, 4, $image_noise_color);
+        }
+
+        /* 在背景图片上，随机生成线条 */
+        for( $i=0; $i<$random_lines; $i++ ) {
+            W2Image::imagelinethick($image, mt_rand(0,$image_width), mt_rand(0,$image_height), mt_rand(0,$image_width), mt_rand(0,$image_height), $image_noise_color,2 );
+        }
+
+        /* 生成一个文本框，然后在里面写字符 */
+        $textWidth  = 0;
+        $angles     = array();
+        $textboxs   = array();
+        foreach (str_split($code) as $index=>$s) {
+            $angles[$index] = -45 + rand(0,90);
+            $textbox        = W2Image::calculateTextBox($font_size, $angles[$index], $font, $s);
+            $textWidth     += $textbox['width'];
+            $textboxs[]     = $textbox;
+        }
+        $x = $image_width > $textWidth?($image_width - $textWidth)/2:10;
+        $step = ($image_width<$textWidth?($image_width-$textWidth-20)/(count($textboxs)-1):0);
+        foreach (str_split($code) as $index=>$s) {
+            $y       = ($image_height - $textboxs[$index]['height'])/2;
+            imagettftext($image, $font_size,$angles[$index] , $x - $textboxs[$index]['left'] , $y - $textboxs[$index]['top'], $text_color, $font , $s);
+            $x       += $textboxs[$index]['width']+$step;
+        }
+
+        return $image;
+    }
+
+    /** 将图片对象转换成base64字符串
+     *
+     */
+    public static function toString($image)
+    {
+        ob_start();
+        imagejpeg($image);
+        $content = ob_get_clean();
+        imagedestroy($image);
+        return $content;
+        // return base64_encode($content);
+        // return urlencode($content);
     }
 
 }
@@ -293,7 +423,7 @@ class W2Image {
 if(array_key_exists('argv', $GLOBALS) && realpath($argv[0]) == __file__){
     buildWaterMarkImage('/Library/Widgets/Calculator.wdgt/Images/Calculator.png',
         '/Library/Widgets/Calculator.wdgt/Images/comma.png', 3, 10, 'watermarked.png');
-    
+
     header('Content-type: image/jpeg');
     $img = drawWaterMarkImage('ad.jpg','watermark.png', 3, 10);
     imagejpeg($img);

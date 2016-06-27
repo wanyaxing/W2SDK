@@ -180,6 +180,22 @@ class W2String {
     }
 
     /**
+     * 创建一个随机字符
+     * @param integer 字符长度
+     * @param string 字符集
+     * @return string 加密字符串
+     */
+    public static function buildRandCharacters($p_length=6,$chars='23456789bcdfghjkmnpqrstvwxyzBCDFGHJKMNPQRSTVWXYZ')
+    {
+        $verifyCode = '';//首位排除0
+        for ( $i = 0; $i < $p_length; $i++ )
+        {
+          $verifyCode .= $chars[ mt_rand(0, strlen($chars) - 1) ];
+        }
+        return $verifyCode;
+    }
+
+    /**
      * 比较加密字符串
      * @param string 原字符串
      * @param string 加密字符串
@@ -398,6 +414,7 @@ class W2String {
         $str = ucwords($str);
         //小写字符串的首字母，然后删除空格
         $str = str_replace(' ','',lcfirst($str));
+        $str = str_replace('Id','ID',$str);
         return $str;
     }
 
@@ -412,7 +429,7 @@ class W2String {
      * $pwd 密钥
      * $data 要加密的数据
      */
-    function rc4 ($pwd, $data)//$pwd密钥　$data需加密字符串
+    public static function rc4 ($pwd, $data)//$pwd密钥　$data需加密字符串
     {
         $key[] = "";
         $box[] = "";
@@ -448,5 +465,50 @@ class W2String {
         }
 
         return $cipher;
+    }
+
+    /** 从多个参数中，取出第一个有效值 */
+    public static function getValidValue()
+    {
+        $args = func_get_args();
+        foreach ($args as $value) {
+            if ($value != null)
+            {
+                return $value;
+            }
+        }
+    }
+
+    /** 根据提供的键值对，创建options字符串。 */
+    public static function getOptionsOfSelect($options,$value=null)
+    {
+        $oList = array();
+        foreach ($options as $oValue => $oName) {
+            $oList[] = '<option value="'.$oValue.'"'.($value===$oValue?' selected':'').'>'.$oName.'</option>';
+        }
+        return implode("\n",$oList);
+    }
+
+    /**
+     * 通过遍历匹配的开头局部，来判断指定的字符串是否匹配这个局部。
+     * 如果局部匹配成功，意味着这个字符串可能是这个匹配的开头部分，后面加上些字符就能完整匹配了。
+     * @param  string $pattern 正则
+     * @param  string $subject 目标字符串
+     * @return bool
+     */
+    public static function pregPartMatch($pattern,$subject)
+    {
+        for ($i=1; $i <= strlen($pattern) ; $i++) {
+            $part = substr($pattern,0,$i);
+            if (preg_match('/[\[\(][^\]\)]*$/',$part))
+            {
+                continue;
+            }
+            if (preg_match('/^'.$part.'$/',$subject))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
