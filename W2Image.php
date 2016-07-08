@@ -397,6 +397,11 @@ class W2Image {
             $x       += $textboxs[$index]['width']+$step;
         }
 
+        /* 在前景图片上，随机生成背景色相同的线条 */
+        for( $i=0; $i<$random_lines; $i++ ) {
+            W2Image::imagelinethick($image, 0, mt_rand(0,$image_height), $image_width, mt_rand(0,$image_height), $background_color,2 );
+        }
+
         return $image;
     }
 
