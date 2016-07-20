@@ -203,12 +203,15 @@ class W2Redis {
      * @param  [type] $buffer                  [description]
      * @return null
      */
-    public static function setCache($p_key,$buffer){
+    public static function setCache($p_key,$buffer,$p_expire=3600){
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
             $_time = time();
-            $memcached -> SETEX($p_key.'_data',3600,$buffer);
-            $memcached -> SETEX($p_key.'_time',3600,$_time);
+            if ($p_expire>0)
+            {
+                $memcached -> SETEX($p_key.'_data',3600,$buffer);
+                $memcached -> SETEX($p_key.'_time',3600,$_time);
+            }
             $memcached -> del($p_key.'_timelock');
             static::isModified($_time,$HTTP_IF_MODIFIED_SINCE,$HTTP_IF_NONE_MATCH);//更新缓存标识，如果需要的话。
         }
@@ -252,8 +255,8 @@ class W2Redis {
      * @param  object $p_obj               目标实例
      * @return [type]        [description]
      */
-    public static function setObj($p_key,$p_obj){
-        static::setCache($p_key,serialize($p_obj));
+    public static function setObj($p_key,$p_obj,$p_expire=3600){
+        static::setCache($p_key,serialize($p_obj),$p_expire);
     }
 
     /**
@@ -262,12 +265,16 @@ class W2Redis {
      * 如果值包含错误的类型，或字符串类型的值不能表示为数字，那么返回一个错误。
      * @param  string $p_key
      * @param  int   $increment  增值，默认1
-     * @return int         执行INCR命令之后key的值。
+     * @return int   执行INCR命令之后key的值。
      */
-    public static function incr($p_key,$increment=1)
+    public static function incr($p_key,$increment=1,$p_expire=3600)
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
+            if ($p_expire>0)
+            {
+                $memcached -> EXPIRE( $p_key.'_incr', $p_expire );
+            }
             return $memcached -> incrby($p_key.'_incr',$increment);
         }
         return false;
@@ -275,14 +282,14 @@ class W2Redis {
 
 
     /** 在指定缓存池增加缓存key，所谓缓存池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于多个缓存共同触发更新。*/
-    public static function addToCacheKeyPool($p_keyPool,$p_key,$p_expire=0)
+    public static function addToCacheKeyPool($p_keyPool,$p_key,$p_expire=3600)
     {
         $memcached = static::memFactory();
         if (isset($memcached,$p_keyPool, $p_key)) {
             $memcached -> lpush( $p_keyPool.'_keypool', $p_key );
             if ($p_expire>0)
             {
-                $memcached -> EXPIRE( $p_keyPool.'_keypool', 3600 );
+                $memcached -> EXPIRE( $p_keyPool.'_keypool', $p_expire );
             }
         }
     }
@@ -348,14 +355,14 @@ class W2Redis {
     }
 
     /** 在指定页面池增加缓存key，所谓页面池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于查询指定的页面。*/
-    public static function addToCachePagePool($p_pagePool,$p_key,$p_expire=0)
+    public static function addToCachePagePool($p_pagePool,$p_key,$p_expire=3600)
     {
         $memcached = static::memFactory();
         if (isset($memcached,$p_pagePool, $p_key)) {
             $memcached -> lpush( $p_pagePool.'_pagepool', $p_key );
             if ($p_expire>0)
             {
-                $memcached -> EXPIRE( $p_pagePool.'_pagepool', 3600 );
+                $memcached -> EXPIRE( $p_pagePool.'_pagepool', $p_expire );
             }
         }
     }
