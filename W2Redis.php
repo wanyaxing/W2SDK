@@ -209,8 +209,8 @@ class W2Redis {
             $_time = time();
             if ($p_expire>0)
             {
-                $memcached -> SETEX($p_key.'_data',3600,$buffer);
-                $memcached -> SETEX($p_key.'_time',3600,$_time);
+                $memcached -> SETEX($p_key.'_data',$p_expire,$buffer);
+                $memcached -> SETEX($p_key.'_time',$p_expire,$_time);
             }
             $memcached -> del($p_key.'_timelock');
             static::isModified($_time,$HTTP_IF_MODIFIED_SINCE,$HTTP_IF_NONE_MATCH);//更新缓存标识，如果需要的话。
