@@ -54,6 +54,19 @@ class W2String {
         // return mb_strlen($p_str,$p_charactset);
     }
 
+    /** 返回字符串的长度 */
+    public static function substr($p_str,$start=0,$length='*',$p_charactset='utf-8')
+    {
+        if ($p_charactset!='utf-8')
+        {
+            $tmp = @iconv($p_charactset, 'utf-8', $p_str);
+            if(!empty($tmp)){
+                $p_str = $tmp;
+            }
+        }
+        return preg_replace('/.{'.$start.'}(.{'.$length.'}).*/us','$1',$p_str);
+    }
+
     /**
      * 判断字符串是否以子串结尾
      * @param string 原文本
