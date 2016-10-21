@@ -29,7 +29,29 @@ class W2Web {
             {
                 curl_setopt($_curl, CURLOPT_POST, true);
                 if (isset($p_postData)) {
-                    curl_setopt($_curl, CURLOPT_POSTFIELDS, $p_postData);
+                    $isObjectInParams = false;
+                    if (is_array($p_postData))
+                    {
+                        foreach ($p_postData as $d) {
+                            if (is_object($d))
+                            {
+                                $isObjectInParams = true;
+                                break;
+                            }
+                        }
+                        if ($isObjectInParams)
+                        {
+                            curl_setopt($_curl, CURLOPT_POSTFIELDS, $p_postData);
+                        }
+                        else
+                        {
+                            curl_setopt($_curl, CURLOPT_POSTFIELDS, http_build_query($p_postData));
+                        }
+                    }
+                    else
+                    {
+                        curl_setopt($_curl, CURLOPT_POSTFIELDS, $p_postData);
+                    }
                 }
             }
             else
@@ -259,17 +281,23 @@ class W2Web {
         return sprintf('HTTP/1.0 %d %s',$code,$messages[$code]);
     }
 
-    //php获取当前访问的完整url地址
-    public static function getCurrentUrl(){
+    /** php获取当前访问的完整HOST地址 */
+    public static function getCurrentHost(){
         $url='http://';
         if(isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']=='on'){
             $url='https://';
         }
         if($_SERVER['SERVER_PORT']!='80'){
-            $url.=$_SERVER['SERVER_NAME'].':'.$_SERVER['SERVER_PORT'].$_SERVER['REQUEST_URI'];
+            $url.=$_SERVER['SERVER_NAME'].':'.$_SERVER['SERVER_PORT'];
         }else{
-            $url.=$_SERVER['SERVER_NAME'].$_SERVER['REQUEST_URI'];
+            $url.=$_SERVER['SERVER_NAME'];
         }
         return $url;
     }
+
+    /** 获取当前访问的完整url地址 */
+    public static function getCurrentUrl(){
+        return W2Web::getCurrentHost().$_SERVER['REQUEST_URI'];
+    }
+
 }
