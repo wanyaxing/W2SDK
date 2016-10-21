@@ -119,7 +119,10 @@ class W2HttpRequest {
             }
             if (isset($p_lenMax) && W2String::strlen($_v)>$p_lenMax)
             {
-                throw new Exception('参数'.$p_key.'最多只能包含'.$p_lenMax.'个以内的字符哦。');
+                if ( W2String::strlen(strip_tags($_v))>$p_lenMax ) //过滤掉html标签代码，只统计正文。
+                {
+                    throw new Exception('参数'.$p_key.'最多只能包含'.$p_lenMax.'个以内的字符哦。');
+                }
             }
         }
         return $_v;
