@@ -49,8 +49,9 @@ class W2String {
                 $p_str = $tmp;
             }
         }
-        preg_match_all('/./us', $p_str, $match);
-        return count($match[0]);  // 输出9
+        $tmp = preg_replace('/./us', '1', $p_str);
+        return strlen($tmp);
+        // preg_match_all('/./us', $p_str, $match);//这玩意碰到太大的数据，会内存溢出。
         // return mb_strlen($p_str,$p_charactset);
     }
 
