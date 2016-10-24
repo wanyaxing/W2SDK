@@ -298,6 +298,39 @@ class W2Qiniu {
 		}
 	}
 
+	/**
+	 * 直接抓取第三方资源到七牛
+	 * @param  [type] $targetUrl 网址
+	 * @param  [type] $key       存储名
+	 * @return [type]            urlPreview
+	 */
+	public static function fetchUrlToQiniu($targetUrl,$key=null)
+	{
+
+		$apiHost = "http://iovip.qbox.me";
+		if ($key==null)
+		{
+			$ext = preg_replace('/^.*\.([^\.]*)$/','$1',parse_url($targetUrl,PHP_URL_PATH));
+			$key ='fetch_'.uniqid().'.'.$ext;
+		}
+		$apiPath = '/fetch/'.Qiniu_Encode($targetUrl).'/to/'.Qiniu_Encode(static::$Qiniu_bucket.':'.$key);
+		$requestBody ='';
+
+		$mac = new Qiniu_Mac(static::$Qiniu_accessKey, static::$Qiniu_secretKey);
+		$client = new Qiniu_MacHttpClient($mac);
+
+		list($ret, $err) = Qiniu_Client_CallWithForm($client, $apiHost . $apiPath, $requestBody);
+		if ($err !== null) {
+			var_dump($err) ;
+		} else {
+			if (is_array($ret) && array_key_exists('key',$ret))
+			{
+				return W2Qiniu::getBaseUrl($ret['key']);
+			}
+		    return $ret;
+		}
+	}
+
 	public static function deleteFile($key)
 	{
 		Qiniu_SetKeys(static::$Qiniu_accessKey, static::$Qiniu_secretKey);
