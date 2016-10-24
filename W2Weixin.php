@@ -231,8 +231,90 @@ class W2Weixin {
         }
         return null;
     }
-}
 
+    /**
+     *
+     * http://mp.weixin.qq.com/wiki/18/167e7d94df85d8389df6c94a7a8f78ba.html
+     * 每次创建二维码ticket需要提供一个开发者自行设定的参数（scene_id），分别介绍临时二维码和永久二维码的创建二维码ticket过程。
+     * @param  integer $expire_seconds 该二维码有效时间，以秒为单位。 最大不超过2592000（即30天），此字段如果不填，则默认有效期为30秒。
+     * @param  string  $action_name    二维码类型，QR_SCENE为临时,QR_LIMIT_SCENE为永久,QR_LIMIT_STR_SCENE为永久的字符串参数值
+     * @param  int     $scene_id       场景值ID，临时二维码时为32位非0整型，永久二维码时最大值为100000（目前参数只支持1--100000）
+     * @param  string  $scene_str      场景值ID（字符串形式的ID），字符串类型，长度限制为1到64，仅永久二维码支持此字段
+     * @return array
+     */
+    public static function getTicketForQrcode($scene_id=null,$scene_str=null,$action_name='QR_SCENE',$expire_seconds=2592000)
+    {
+        $params = array(
+                'expire_seconds'=>$expire_seconds
+                ,'action_name'=>$action_name
+                ,'action_info'=>array( 'scene'=>array() )
+            );
+        if (!is_null($scene_id))
+        {
+            $params['action_info']['scene']['scene_id'] = $scene_id;
+        }
+        if (!is_null($scene_str))
+        {
+            $params['action_info']['scene']['scene_str'] = $scene_str;
+        }
+
+        $url = 'https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token='.static::getAccessToken();
+
+        return W2Web::loadJsonByUrl($url,'post',json_encode($params,JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * http://mp.weixin.qq.com/wiki/15/8386c11b7bc4cdd1499c572bfe2e95b3.html
+     * 开发者可以分类型获取永久素材的列表。
+     * @param  string  $type   素材的类型，图片（image）、视频（video）、语音 （voice）、图文（news）
+     * @param  integer $offset 从全部素材的该偏移位置开始返回，0表示从第一个素材 返回
+     * @param  integer $count  返回素材的数量，取值在1到20之间
+     * @return array
+     */
+    public static function batchgetMaterial($type=null,$offset=0,$count=20)
+    {
+        $params = array(
+                'type'=>$type
+                ,'offset'=>$offset
+                ,'count'=>$count
+            );
+
+        $url = 'https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token='.static::getAccessToken();
+
+        return W2Web::loadJsonByUrl($url,'post',json_encode($params,JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * http://mp.weixin.qq.com/wiki/12/3c12fac7c14cb4d0e0d4fe2fbc87b638.html
+     * 在新增了永久素材后，开发者可以根据media_id来获取永久素材，需要时也可保存到本地。
+     * @param  int $media_id 要获取的素材的media_id
+     * @return array 如果请求的素材为图文消息或视频消息，则响应相关数据，其他类型的素材消息，则响应的直接为素材的内容，开发者可以自行保存为文件。
+     */
+    public static function getMaterial($media_id=null)
+    {
+        $params = array(
+                'media_id'=>$media_id
+            );
+
+        $url = 'https://api.weixin.qq.com/cgi-bin/material/get_material?access_token='.static::getAccessToken();
+
+        return W2Web::loadStringByUrl($url,'post',json_encode($params,JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * http://mp.weixin.qq.com/wiki/18/749901f4e123170fb8a4d447ae6040ba.html#.E8.8E.B7.E5.8F.96.E5.9C.A8.E7.BA.BF.E5.AE.A2.E6.9C.8D.E6.8E.A5.E5.BE.85.E4.BF.A1.E6.81.AF
+     * 获取在线客服接待信息
+     * @return array
+     */
+    public static function getOnlineKfList()
+    {
+        $url = 'https://api.weixin.qq.com/cgi-bin/customservice/getonlinekflist?access_token='.static::getAccessToken();
+
+        return W2Web::loadJsonByUrl($url,'get',array());
+    }
+
+
+}
 
 //静态类的静态变量的初始化不能使用宏，只能用这样的笨办法了。
 if (W2Weixin::$APPID==null && defined('W2WEIXIN_APPID'))
