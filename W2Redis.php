@@ -80,6 +80,24 @@ class W2Redis {
     }
 
     /**
+     * 重置 INFO 命令中的某些统计数据，包括：
+     *  Keyspace hits (键空间命中次数)
+     *  Keyspace misses (键空间不命中次数)
+     *  Number of commands processed (执行命令的次数)
+     *  Number of connections received (连接服务器的次数)
+     *  Number of expired keys (过期key的数量)
+     * @return 总是返回 OK 。
+     */
+    public static function resetStat()
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached)) {
+            return $memcached->resetStat();
+        }
+        return null;
+    }
+
+    /**
      * 最强方法，根据key值获得缓存内容
      * @param  string  $p_key                   缓存key
      * @param  integer $p_timeout               过期时间
