@@ -519,6 +519,77 @@ class W2Qiniu {
 		return $items;
 	}
 
+
+	/**
+	 * http://developer.qiniu.com/code/v6/api/kodo-api/image/watermark.html
+	 * 给图片添加水印，params 是水印参数的字典（单个水印）或字典组成的数组（多个水印）
+	 * @param  [type] $params [description]
+	 * 参数名称	必填	说明
+		/image/<encodedImageURL>	是	水印源图片网址（经过URL安全的Base64编码），必须有效且返回一张图片。
+		/dissolve/<dissolve>		透明度，取值范围1-100，默认值为100（完全不透明）。
+		/gravity/<gravity>		    水印位置，参考水印锚点参数表，默认值为SouthEast（右下角）。
+		/dx/<distanceX>		        横轴边距，单位:像素(px)，默认值为10。
+		/dy/<distanceY>		        纵轴边距，单位:像素(px)，默认值为10。
+		/ws/<watermarkScale>		水印图片自适应原图的短边比例，取值范围0-1。
+
+		/text/<encodedText>	是	   水印文字内容（经过URL安全的Base64编码）
+		/font/<encodedFontName>		 水印文字字体（经过URL安全的Base64编码），默认为黑体，详见支持字体列表 注意：中文水印必须指定中文字体。 https://support.qiniu.com/hc/kb/article/112878/
+		/fontsize/<fontSize>		    水印文字大小，单位: 缇 ，等于1/20磅，默认值0，参考DPI为72。
+		/fill/<encodedTextColor>		水印文字颜色，RGB格式，可以是颜色名称（例如 red）或十六进制（例如 #FF0000），参考RGB颜色编码表，默认为白色(TODO)。经过URL安全的Base64编码。
+		/dissolve/<dissolve>		    透明度，取值范围1-100，默认值100（完全不透明）。
+		/gravity/<gravity>		      水印位置，参考水印位置参数表，默认值为SouthEast（右下角）。
+		/dx/<distanceX>		         横轴边距，单位:像素(px)，默认值为10。
+		/dy/<distanceY>		         纵轴边距，单位:像素(px)，默认值为10。
+	 * @return [type]         [description]
+	 */
+    public static function watermarkUrl($imageUrl,$params)
+    {
+        $suffix = '';
+        $watermarkType = 3;
+        if (W2Array::isList($params))
+        {
+        	$params = array($params);
+        }
+        if (count($params)>1)
+        {
+        	$watermarkType = 3;
+        }
+        else if (count($params)==0)
+        {
+        	return 'unknown watermarkType.';
+        }
+        else if (array_key_exists('image',$params[0]))
+    	{
+        	$watermarkType = 1;
+    	}
+    	else if (array_key_exists('image',$params[0]))
+    	{
+        	$watermarkType = 2;
+    	}
+    	else
+    	{
+    		return 'unknown watermarkType.';
+    	}
+
+        foreach ($params as $param) {
+        	foreach ($param as $key => $value) {
+	            switch ($key) {
+	                case 'image':
+	                case 'text':
+	                case 'font':
+	                case 'fill':
+	                    $suffix .= '/'.$key.'/'.Qiniu_Encode($value);
+	                    break;
+
+	                default:
+	                    $suffix .= '/'.$key.'/'.$value;
+	                    break;
+	            }
+        	}
+        }
+        return $imageUrl.'?watermark/'.$watermarkType.$suffix;
+    }
+
 }
 
 //静态类的静态变量的初始化不能使用宏，只能用这样的笨办法了。
