@@ -93,6 +93,22 @@ class W2File {
         return false;
     }
 
+    /** 无视大小写，获得真实路径 */
+    public static function realpath($filePath,$fileDir = '')
+    {
+        if (file_exists($fileDir.$filePath))
+        {
+            return realpath($fileDir.$filePath);
+        }
+        $guessPath = preg_replace_callback('/([A-Za-z])/', function($matches){
+                                                return '['.strtolower($matches[1]).strtoupper($matches[1]).']';
+                                            }, $filePath);
+        foreach (glob(AXAPI_JOB_PATH.$guessPath) as $_file) {
+            return $_file;
+        }
+        return null;
+    }
+
 
 
 }
