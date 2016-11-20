@@ -159,7 +159,7 @@ class W2String {
      */
     public static function is_int($_v)
     {
-        return is_int($_v) || (strval(intval($_v))===$_v);
+        return is_int($_v) || (strval(intval($_v))===strval($_v));
     }
 
     /**
