@@ -248,4 +248,14 @@ class W2Array {
 	    }
 	    return (count($arr)==0);
 	}
+
+	/** 寻找并移除数组的值。 */
+	public static function unsetInArray($value,&$arr){
+		$index = array_search($value,$arr);
+		if ($index >0 || $index === 0)
+		{
+			unset($arr[$index]);
+		}
+		return true;
+	}
 }
