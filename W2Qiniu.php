@@ -310,7 +310,11 @@ class W2Qiniu {
 		$apiHost = "http://iovip.qbox.me";
 		if ($key==null)
 		{
-			$ext = preg_replace('/^.*\.([^\.]*)$/','$1',parse_url($targetUrl,PHP_URL_PATH));
+			$ext = preg_replace('/^.*\.([^\.\/]*)$/','$1',parse_url($targetUrl,PHP_URL_PATH));
+			if (strlen($ext)>5)
+			{
+				$ext = 'tmp';
+			}
 			$key ='fetch_'.uniqid().'.'.$ext;
 		}
 		$apiPath = '/fetch/'.Qiniu_Encode($targetUrl).'/to/'.Qiniu_Encode(static::$Qiniu_bucket.':'.$key);
