@@ -127,16 +127,63 @@ class W2Array {
 		return is_array($p_array) && (array_keys($p_array) !== array_keys(array_keys($p_array)));
 	}
 
+
+	/** 将数组里的key路径遍历取出 */
+	public static function getKeyIndex($targetArray)
+	{
+        $keyIndex = array();
+        if (is_array($targetArray))
+        {
+            foreach ($targetArray as $key => $value) {
+                $keyIndex[] = $key;
+                if (is_array($value))
+                {
+                    foreach (static::getKeyIndex($value) as $valueSecond) {
+                        $keyIndex[] = $key.'>'.$valueSecond;
+                    }
+                }
+            }
+        }
+        return $keyIndex;
+	}
+
 	/**
-	 * 通过路径字符串快速提取字典中的值
+	 * 通过模糊路径字符串快速查找字典中的值
 	 * @param  [type] $p_array [description]
-	 * @param  [type] $path    如 'user>avatar'
+	 * @param  [type] $path    如 '.*?>avatar' 模糊路径
+	 * @return [type]          [description]
+	 */
+	public static function searchInArray($p_array,$path)
+	{
+		$result = array();
+
+		$keyIndex = W2Array::getKeyIndex($p_array);
+		$searchIndexString = implode("\n",$keyIndex);
+        preg_match_all('/(^|\s)('.$path.')($|\s+)/',$searchIndexString,$matches);
+        if (is_array($matches) && count($matches)>=2)
+        {
+            foreach ($matches[2] as $pathMatched) {
+                $result[] = W2Array::findInArray($p_array,$pathMatched);
+            }
+        }
+
+		return $result;
+	}
+
+	/**
+	 * 通过指定路径字符串快速提取字典中的值
+	 * @param  [type] $p_array [description]
+	 * @param  [type] $path    如 'user>avatar' 绝对路径
 	 * @return [type]          [description]
 	 */
 	public static function findInArray($p_array,$path)
 	{
-		$result = $p_array;
-		foreach (explode('>',$path) as $k) {
+		$result = null;
+		foreach (explode('>',$path) as $i=>$k) {
+			if ($i==0)
+			{
+				$result = $p_array;
+			}
 			if (isset($result[$k]))
 			{
 				$result = $result[$k];
