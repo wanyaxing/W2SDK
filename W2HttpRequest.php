@@ -71,7 +71,7 @@ class W2HttpRequest {
 
         }
         if (defined('IS_AX_DEBUG')){var_export($p_key);print(" : ");var_export($_v);print("\n");}
-        return $_v;
+        return htmlspecialchars($_v);
     }
 
 
