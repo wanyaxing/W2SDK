@@ -70,8 +70,12 @@ class W2HttpRequest {
             }
 
         }
+        if (!is_null($_v))
+        {
+            $_v = htmlspecialchars($_v);
+        }
         if (defined('IS_AX_DEBUG')){var_export($p_key);print(" : ");var_export($_v);print("\n");}
-        return htmlspecialchars($_v);
+        return $_v;
     }
 
 
