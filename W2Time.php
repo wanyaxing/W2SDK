@@ -60,6 +60,7 @@ class W2Time {
     public static function microtimetostr($p_microtime=null,$p_format='Y-m-d H:i:s.u e')
     {
         if (is_null($p_microtime)){$p_microtime = microtime(true);}
+        $p_microtime = sprintf('%.4f',$p_microtime);
         $defaultTimeZone = date_default_timezone_get();
         $timeZone = new DateTimeZone(is_null($defaultTimeZone)?'Asia/Shanghai':$defaultTimeZone);
         $date = null;
