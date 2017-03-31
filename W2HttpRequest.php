@@ -70,10 +70,6 @@ class W2HttpRequest {
             }
 
         }
-        if (!is_null($_v))
-        {
-            $_v = htmlspecialchars($_v);
-        }
         if (defined('IS_AX_DEBUG')){var_export($p_key);print(" : ");var_export($_v);print("\n");}
         return $_v;
     }
@@ -107,7 +103,7 @@ class W2HttpRequest {
 
 
     /**
-     * 从http请求中获得字符串
+     * 从http请求中获得字符串（不作防xss处理，用户需自行处理）
      * @param string key
      * @param bool 允许空白，如不允许，则当该参数传入空值时，等同于未传参数，使用默认值。
      * @return null|string value
@@ -132,7 +128,44 @@ class W2HttpRequest {
         return $_v;
     }
 
+    /**
+     * 从http请求中获得字符串(并使用htmlspecialchars进行防xss处理)
+     * @param string key
+     * @param bool 允许空白，如不允许，则当该参数传入空值时，等同于未传参数，使用默认值。
+     * @return null|string value
+     */
+    public static function getRequestStringSpecial($p_key, $p_allowBlank=false,$p_default=null,$p_lenMin=null,$p_lenMax=null){
 
+        $_v = static::getRequestString($p_key,$p_allowBlank,$p_default,$p_lenMin,$p_lenMax);
+
+        if (!is_null($_v))
+        {
+            $_v = htmlspecialchars($_v);
+        }
+
+        return $_v;
+    }
+
+    /**
+     * 从http请求中获得富文本字符串(并使用XssHtml进行防xss处理)
+     * @param string key
+     * @param bool 允许空白，如不允许，则当该参数传入空值时，等同于未传参数，使用默认值。
+     * @return null|string value
+     */
+    public static function getRequestStringRich($p_key, $p_allowBlank=false,$p_default=null,$p_lenMin=null,$p_lenMax=null){
+
+        $_v = static::getRequestString($p_key,$p_allowBlank,$p_default,$p_lenMin,$p_lenMax);
+
+        if (!is_null($_v))
+        {
+            include_once('xsshtml.class.php');
+            $xss = new XssHtml($_v);
+
+            $_v = $xss->getHtml();
+        }
+
+        return $_v;
+    }
 
 
     /**
