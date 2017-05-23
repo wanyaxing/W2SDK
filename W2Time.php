@@ -21,7 +21,7 @@ class W2Time {
             $p_time = time();
         }
         $time = null;
-        if (W2String::is_int($p_time))
+        if (W2String::is_int($p_time) && (strlen($p_time)==13 || strlen($p_time)==10) )
         {
             if (strlen($p_time)==13)
             {
