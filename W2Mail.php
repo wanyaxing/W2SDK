@@ -3,15 +3,22 @@
  * 邮件函数库文件，依赖PHPMailer（http://phpmailer.worxware.com）
  * @package W2
  * @author 琐琐
- * @since 1.0
- * @version 1.0
+ * @since 1.1
+ * @version 1.1
  */
 
 class W2Mail {
 
     const REQUIRE_PATH = '../PHPMailer/class.phpmailer.php';
 
-    public static $SENDCLOUD_API_USER        = null;
+    public static $MAIL_ACCOUNT          = null;
+    public static $MAIL_PASSWORD         = null;
+    public static $MAIL_SENDERNAME       = null;
+    public static $MAIL_HOST             = null;
+    public static $MAIL_PORT             = null;
+
+
+    public static $SENDCLOUD_API_USER    = null;
     public static $SENDCLOUD_API_KEY     = null;
 
     /**
@@ -31,60 +38,55 @@ class W2Mail {
     }
 
     /**
-     * 发送邮件，使用gmail帐户，返回发送结果
+     * 使用mail帐户发送邮件
      * @param string $pToMail 收件人地址
      * @param string $pSubject 主题
      * @param string $pContent 正文
      * @param array  $pAttachment 附件
-     * @param string $pSenderName 发件人名称
-     * @param string $pSenderMail 发件人地址，必须为gmail账户
-     * @param string $pSenderPassword 发件人密码
      * @return array 结果
      */
-    public static function sendMailWithGmail($pToMail, $pSubject, $pContent, $pAttachment=null, $pSenderName, $pSenderMail, $pSenderPassword) {
-        $_r = array();
+    public static function sendMail($pToMail, $pSubject, $pContent, $pAttachment=null) {
+
         if(!W2Mail::checkRequire()){
-            $_r['result'] = 3;
-            $_r['message'] = 'require PHPMailer';
+            throw new Exception('require PHPMailer', 1);
         } else {
             $mail = new PHPMailer(true);
             $mail->IsSMTP();
 
-            try {
-                $mail->CharSet    = 'UTF-8';
-                $mail->Host       = "smtp.gmail.com";      // sets GMAIL as the SMTP server
-                $mail->SMTPDebug  = 0;                     // enables SMTP debug information (for testing)
-                                                           // 1 = errors and messages
-                                                           // 2 = messages only
-                $mail->SMTPAuth   = true;                  // enable SMTP authentication
-                $mail->SMTPSecure = "ssl";                 // sets the prefix to the servier
-                $mail->Port       = 465;                   // set the SMTP port for the GMAIL server
-                $mail->Username   = $pSenderMail;          // GMAIL username
-                $mail->Password   = $pSenderPassword;            // GMAIL password
-                $mail->AddReplyTo($pSenderMail, $pSenderName);
-                $mail->AddAddress($pToMail);
-                $mail->SetFrom($pSenderMail, $pSenderName);
-                $mail->Subject = $pSubject;
-                $mail->MsgHTML($pContent);
-                if (is_array($pAttachment)) {
-                    foreach ($pAttachment as $_a) {
-                        if (file_exists($_a)) {
-                            $mail->AddAttachment($_a);
-                        }
+            $mail->CharSet    = 'UTF-8';
+            $mail->Host       = static::$MAIL_HOST;      // sets GMAIL as the SMTP server
+            $mail->SMTPDebug  = 0;                     // enables SMTP debug information (for testing)
+                                                       // 1 = errors and messages
+                                                       // 2 = messages only
+            $mail->SMTPAuth   = true;                  // enable SMTP authentication
+            $mail->SMTPSecure = "ssl";                 // sets the prefix to the servier
+            $mail->Port       = static::$MAIL_PORT;                   // set the SMTP port for the GMAIL server
+            $mail->Username   = static::$MAIL_ACCOUNT;          // GMAIL username
+            $mail->Password   = static::$MAIL_PASSWORD;            // GMAIL password
+            $mail->AddAddress($pToMail);
+            $mail->SetFrom(static::$MAIL_ACCOUNT, static::$MAIL_SENDERNAME);
+            $mail->AddReplyTo(static::$MAIL_ACCOUNT, static::$MAIL_SENDERNAME);
+
+            $mail->Subject = $pSubject;
+            $mail->MsgHTML($pContent);
+
+            if (!is_null($pAttachment))
+            {
+                if (!is_array($pAttachment))
+                {
+                    $pAttachment = array($pAttachment);
+                }
+                foreach ($pAttachment as $_a)
+                {
+                    if (file_exists($_a))
+                    {
+                        $mail->AddAttachment($_a);
                     }
                 }
-                $mail->Send();
-                $_r['result'] = 0;
-            } catch (phpmailerException $e) {
-                $_r['result'] = 1;
-                // $_r['message'] = $e->errorMessage();
-                $_r['message'] = $e->getMessage();
-            } catch (Exception $e) {
-                $_r['result'] = 2;
-                $_r['message'] = $e->getMessage();
             }
+            $mail->Send();
         }
-        return $_r;
+        return true;
     }
 
     public static function sendCloudWithTemple($pToMail, $pSubject, $pSub, $pAttachment=null, $pFromMail, $pFromname = null)
@@ -121,8 +123,18 @@ class W2Mail {
 
 
 //静态类的静态变量的初始化不能使用宏，只能用这样的笨办法了。
-if (W2Mail::$SENDCLOUD_API_USER == null && defined('W2SMS_USER'))
+if (W2Mail::$SENDCLOUD_API_USER == null && defined('W2MAIL_SENDCLOUD_API_USER'))
 {
     W2Mail::$SENDCLOUD_API_USER      = W2MAIL_SENDCLOUD_API_USER;
     W2Mail::$SENDCLOUD_API_KEY       = W2MAIL_SENDCLOUD_API_KEY;
+}
+
+//静态类的静态变量的初始化不能使用宏，只能用这样的笨办法了。
+if (W2Mail::$MAIL_ACCOUNT==null && defined('W2MAIL_ACCOUNT'))
+{
+    W2Mail::$MAIL_ACCOUNT            = W2MAIL_ACCOUNT;
+    W2Mail::$MAIL_PASSWORD           = W2MAIL_PASSWORD;
+    W2Mail::$MAIL_SENDERNAME         = W2MAIL_SENDERNAME;
+    W2Mail::$MAIL_HOST               = W2MAIL_HOST;
+    W2Mail::$MAIL_PORT               = W2MAIL_PORT;
 }
