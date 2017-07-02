@@ -21,11 +21,11 @@ class W2Time {
             $p_time = time();
         }
         $time = null;
-        if (W2String::is_int($p_time) && (strlen($p_time)==13 || strlen($p_time)==10) )
+        if (W2String::is_int($p_time) && strlen($p_time)>=8  )
         {
-            if (strlen($p_time)==13)
+            if (strlen($p_time)>=12)
             {
-                $p_time = substr($p_time,0,10);
+                $p_time = substr($p_time,0,-3);
             }
             $time = intval($p_time);
         }
