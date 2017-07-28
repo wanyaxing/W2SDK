@@ -182,7 +182,7 @@ class W2HttpRequest {
 
         if (isset($_v) && $_v!==$p_default)
         {
-            if ( is_float($_v) )
+            if (strval(floatval($_v)) != $_v)
             {
                 throw new Exception('参数'.$p_key.'请使用正确的数字值。');
             }
