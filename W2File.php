@@ -109,7 +109,62 @@ class W2File {
         return null;
     }
 
+    /**
+     *  输出文件供下载
+     *  推荐实用Apache扩展X-Sendfile来进行文件下载处理。
+     * @param  string $filePath 文件路径
+     * @param  sting $fileName 文件名（下载后保存的文件名）
+     * @return null           exit 并输出文件
+     */
+    public static function xSendFile($filePath,$fileName=null)
+    {
+        if (!file_exists($filePath))
+        {
+            throw new Exception('no file found, nothing to download.', 1);
+        }
+        if (is_null($fileName))
+        {
+            $fileName = basename($filePath);
+        }
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/octet-stream');
+        $ua = $_SERVER["HTTP_USER_AGENT"];
+        if (preg_match('/MSIE/', $ua))
+        {
+            header('Content-Disposition: attachment; filename="' . rawurlencode($fileName) . '"');
+        }
+        elseif (preg_match("/Firefox/", $ua))
+        {
+            header('Content-Disposition: attachment; filename*="utf8\'\'' . $fileName . '"');
+        }
+        else
+        {
+            header('Content-Disposition: attachment; filename="' . $fileName . '"');
+        }
 
+        header('Content-Transfer-Encoding: binary');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($filePath));
+
+        if (strpos($_SERVER["SERVER_SOFTWARE"], 'Apache') !== false)
+        {
+            header('X-Sendfile: ' . $filePath);
+        }
+        elseif (strpos($_SERVER["SERVER_SOFTWARE"], 'nginx') !== false)
+        {
+            // 使用 nginx 服务器时，则把 文件下载交给 nginx 处理，这样效率高些
+            header('X-Accel-Redirect: '. '/protected/' . $filename);
+        }
+        else
+        {
+            set_time_limit(300);  // 避免下载超时
+            ob_end_clean();  // 避免大文件导致超过 memory_limit 限制
+            readfile($filePath);
+        }
+        exit;
+    }
 
 }
 
