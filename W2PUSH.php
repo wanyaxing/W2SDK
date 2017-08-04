@@ -41,7 +41,7 @@ class W2PUSH {
 		}
 		else if ($device_type==3) //安卓推送
 		{
-			if (static::$API_KEY_IOS==null && defined('W2PUSH_API_KEY_IOS'))
+			if (static::$API_KEY_ANDROID==null && defined('W2PUSH_API_KEY_ANDROID'))
 			{
 				static::$API_KEY_ANDROID    = W2PUSH_API_KEY_ANDROID;
 				static::$SECRET_KEY_ANDROID = W2PUSH_SECRET_KEY_ANDROID;
