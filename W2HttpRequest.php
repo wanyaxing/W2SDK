@@ -21,14 +21,14 @@ class W2HttpRequest {
      * @return bool         true/false
      */
     public static function issetRequest($p_keys,$p_allowBlank=false){
-        return is_null(static::getUnsetRequest($p_keys,$p_allowBlank),$p_default);
+        return is_null(static::getUnsetRequest($p_keys,$p_allowBlank));
     }
 
     /**
      * 判断目标key是否都存在，返回首个不存在的key
      * @param  string|array $p_keys       多个key可用逗号隔开的字符串或组成数组
      * @param  bool         $p_allowBlank 是否允许空值
-     * @return bool         true/false
+     * @return string        返回首个不存在的key
      */
     public static function getUnsetRequest($p_keys,$p_allowBlank=false){
         $p_keys = explode(',', $p_keys);
