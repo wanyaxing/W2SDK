@@ -438,6 +438,12 @@ class W2String {
         return strtolower(ltrim(preg_replace_callback('/[A-Z]/', function ($mathes) { return '_' . strtolower($mathes[0]); }, $str), '_'));
     }
 
+    /** 短横线隔开式字符串（全部小写） */
+    public static function kebabcase($str) {
+        $str = static::under_score($str);
+        return str_replace('_','-',$str);
+    }
+
     /*
      * rc4加密算法
      * $pwd 密钥
