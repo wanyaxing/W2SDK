@@ -41,8 +41,8 @@ class W2SMS {
             $data['ts'] = date('YmdHi',time());//计划发送时间,格式“yyyyMMddHHmm”，默认当前
             $data['dtype'] = 0;//响应数据格式;0,普通字串，1.XML格式，默认0
 
-            $data['passwd'] = md5($data['user'].$data['passwd']);//MD532位加密用户名和API密码
-            $_r = W2Web::loadStringByUrl('http://api5.nashikuai.cn/SendSms.aspx','post',$data);
+            $data['passwd'] = strtoupper(md5($data['user'].$data['passwd']));//MD532位加密用户名和API密码
+            $_r = W2Web::loadStringByUrl('http://www.shizhicom.cn:8080/SendMessage/SendSms_API','get',$data);
         }
         return $_r;
     }
@@ -54,22 +54,22 @@ class W2SMS {
     {
         $user = static::$SMS_USER;
         $passwd = static::$SMS_PASSWD;
-        $strPasswd = md5($user.$passwd);
-        $strUrl = 'http://api5.nashikuai.cn/GetBalance.aspx?user='.$user.'&passwd='.$strPasswd.'&dtype=1';
+        $strPasswd = strtoupper(md5($user.$passwd));
+        $strUrl = 'http://www.shizhicom.cn:8080/SendMessage/GetBalance_API?user='.$user.'&passwd='.$strPasswd.'&dtype=1';
         $results = file_get_contents($strUrl);
         $results = simplexml_load_string($results);
         if ($results->overqty)
         {
-            return $results->overqty;
+            return intval($results->overqty);
         }
-    return false;
+       return false;
     }
 
     /**
      * 发送短信，使用的是云之讯ucpaas.com
-     * @param  string $p_telephone      手机号码
+     * @param  string $p_telephone        手机号码
      * @param  string $p_verifyCode       验证码
-     * @return array                    结果
+     * @return array                      结果
      */
     public static function sendVerifyCodeWithUcpaas($p_telephone, $p_verifyCode)
     {
