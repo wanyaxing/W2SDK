@@ -62,6 +62,29 @@ class W2File {
         return   is_dir ( $dir )  or  (W2File::directory(dirname( $dir ))  and  mkdir ( $dir ) );
     }
 
+    public static function listDir($path){
+        $files = [];
+        if (is_dir($path))
+        {
+            $dh = opendir($path);
+            while ($file = readdir($dh)) {
+                if (substr($file,0,1)!='.') {
+                    $fullpath = $path."/".$file;
+                    if (!is_dir($fullpath)) {
+                        $files[] = $fullpath;
+                    } else {
+                        $files = array_merge($files,static::listDir($fullpath));
+                    }
+                }
+            }
+        }
+        else
+        {
+            $files[] = $path;
+        }
+        return $files;
+    }
+
     /**
      * 删除目标文件夹（及其所有子文件）
      * @param  [type] $dir [description]

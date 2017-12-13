@@ -594,6 +594,27 @@ class W2Qiniu {
         return $imageUrl.'?watermark/'.$watermarkType.$suffix;
     }
 
+	/**
+	 * 上传文件到七牛，并获得其预览地址
+	 * @param  string $filePath 本地文件路径
+	 * @param  string $key      存储目标文件名（默认为 md5_filesize.type
+	 * @return string           存储后的预览URL
+	 */
+    public static function uploadFolder($folderPathRoot,$folderPathRelative='',$prefix='')
+    {
+    	$folderPathRoot = realpath($folderPathRoot);
+    	$targetPath = realpath($folderPathRoot.'/'.$folderPathRelative);
+    	$files = W2File::listDir($targetPath);
+    	$qinius = [];
+    	foreach ($files as $filePath) {
+		    $saveName = str_replace($folderPathRoot,'',$filePath);
+		    $saveName = preg_replace('/^\/+/','',$saveName);
+		    $saveName = $prefix . $saveName;
+    		$qinius[] = static::uploadAndReturnQiniuPreviewUrl($filePath,$saveName);
+    	}
+    	return $qinius;
+    }
+
 }
 
 //静态类的静态变量的初始化不能使用宏，只能用这样的笨办法了。
