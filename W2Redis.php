@@ -99,9 +99,9 @@ class W2Redis {
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
-            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
             if (static::isCacheCanBeUsed($p_key,$p_timeout))
             {
+                static::$requestCacheKeys[]=$p_key;//记录本次请求中可用的取出的key
                 //有可用的缓存，取出缓存给ta就是。
                 $_data = $_time = $memcached->get($p_key.'_data');
                 if ($_data!==false)
