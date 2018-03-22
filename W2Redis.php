@@ -12,19 +12,11 @@ class W2Redis {
     public static $CACHE_HOST  = null;  //服务器
     public static $CACHE_PORT  = null;  //端口
     public static $CACHE_INDEX = null;  //数据库索引，一般是0-20
-
     public static $CACHE_AUTH = null;   //密码，如果需要的话。
 
     public static $_ax_connect = null;                                        //缓存连接唯一实例
 
-    public static $clearCachedKeyList        = array();                           //设定本次请求结束后需要清理的缓存key列表数组，当本次请求结束后，就去清理列表里 的 key缓存。
-    public static $clearCachedKeyPoolList    = array();                           //设定本次请求结束后需要清理的缓存池列表数组，当本次请求结束后，就去清理列表里 的 缓存池里 的 key缓存。
-    public static $canBeCached               = false  ;                           //该页面是否可以被缓存。
-    public static $canBeCachedKeySpecial     = null   ;                           //该页面的有规则缓存key,若不设定，则使用无规则key数据
-    public static $canBeCachedTimeOut        = 600    ;                           //缓存设置：该缓存多久更新一次。单位：秒
-    public static $canBeCachedKeyPoolList    = array();                           //设定所在缓存池列表数组，一个页面可以存到多个缓存池中，array()为空数组。
-
-    public static $cachedKeyGotList    = array();                           //记录本次请求中读取过的缓存key。
+    public static $requestCacheKeys    = array();                           //记录本次请求中读取过的缓存key。
 
 
 
@@ -107,7 +99,7 @@ class W2Redis {
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
-            static::cachedKeyGotListPush($p_key);//记录本次请求中取过的key
+            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
             if (static::isCacheCanBeUsed($p_key,$p_timeout))
             {
                 //有可用的缓存，取出缓存给ta就是。
@@ -125,9 +117,10 @@ class W2Redis {
      * 是否有可用的缓存
      * @param  string  $p_key                   缓存key
      * @param  integer $p_timeout               过期时间
+     * @param  bool    $lockIfTimeout              如果过期是否加更新锁（加更新锁后，120秒内其他人仍用旧缓存）
      * @return boolean                          是，否
      */
-    public static function isCacheCanBeUsed($p_key,$p_timeout=300)
+    public static function isCacheCanBeUsed($p_key,$p_timeout=300,$lockIfTimeout=true)
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
@@ -135,16 +128,19 @@ class W2Redis {
             if ($_time!==false){
                 $_timelock = $memcached->get($p_key.'_timelock');
 
-                $time_step = time()-$_time;
+                $now = time();
 
-                //判断是否需要生成新缓存。锁状态过期 或 缓存过期且（锁状态不存在），需要生成新缓存.
+                //判断已有缓存是否可用。有锁锁状态过期 或 无锁缓存过期，则不可用已有缓存。
                 if (
-                    (isset($_GET['reloadcache'])&& $_GET['reloadcache']=="true")    //强制reload缓存
-                    ||    ($_timelock!==false && time() > $_timelock)               //有锁，且时间锁已过期（一般是时间锁被重置为1了）
-                    ||    ($_timelock===false && $time_step > $p_timeout)           //没有锁，且缓存超时
+                       ($_timelock!==false && $now > $_timelock)               //有锁，且时间锁已过期（一般是时间锁被重置为1了）
+                    || ($_timelock===false && $now - $_time > $p_timeout)           //没有锁，且缓存超时
+                    // || (isset($_GET['reloadcache'])&& $_GET['reloadcache']=="true")    //强制reload缓存
                     )
                 {//不管
-                        $memcached -> SETEX( $p_key.'_timelock',600, time()+120);//设定新的缓存锁，此位用户负责生成新的缓存，如果缓存失败，则两分钟后有人会重新触发。
+                        if ($lockIfTimeout)
+                        {
+                            $memcached -> SETEX( $p_key.'_timelock',600, time()+120);//设定新的缓存锁，此位用户负责生成新的缓存，如果缓存失败，则两分钟后有人会重新触发。
+                        }
                         AX_DEBUG('缓存失效：'.$p_key);
                         return false;//return false的意思是说，你得请重新请求数据。
                 }
@@ -216,7 +212,7 @@ class W2Redis {
     }
 
     /**
-     * 最强搭档，更新缓存到指定Key，如果有必要，还会修改 HTTP_IF_MODIFIED_SINCE HTTP_IF_NONE_MATCH
+     * 最强搭档，更新缓存到指定Key，如果有必要
      * @param  string  $p_key                   缓存key
      * @param  [type] $buffer                  [description]
      * @return null
@@ -224,14 +220,14 @@ class W2Redis {
     public static function setCache($p_key,$buffer,$p_expire=3600){
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
+            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
             $_time = time();
             if ($p_expire>0)
             {
                 $memcached -> SETEX($p_key.'_data',$p_expire,$buffer);
                 $memcached -> SETEX($p_key.'_time',$p_expire,$_time);
             }
-            $memcached -> del($p_key.'_timelock');
-            static::isModified($_time,$HTTP_IF_MODIFIED_SINCE,$HTTP_IF_NONE_MATCH);//更新缓存标识，如果需要的话。
+            $memcached -> del($p_key.'_timelock');//更新缓存时，删除缓存更新的锁
         }
     }
 
@@ -247,15 +243,14 @@ class W2Redis {
             $memcached -> del($p_key.'_data');
             $memcached -> del($p_key.'_time');
             $memcached -> del($p_key.'_timelock');
-            static::isModified($_time,$HTTP_IF_MODIFIED_SINCE,$HTTP_IF_NONE_MATCH);//更新缓存标识，如果需要的话。
         }
     }
 
     /**
-     * 读取缓存的变身，可以读取实例呢
+     * 读取实例，实则是读取缓存的变身，只是读取出字符串后，编译成php对象
      * @param  string  $p_key                   缓存key
      * @param  integer $p_timeout               过期时间
-     * @return [type]             [description]
+     * @return object
      */
     public static function getObj($p_key,$p_timeout=300)
     {
@@ -268,10 +263,10 @@ class W2Redis {
     }
 
     /**
-     * 存储缓存的变身，可以存储实例呢
+     * 存储实例，实则是将实例转化成字符串后存储缓存
      * @param  string  $p_key                   缓存key
      * @param  object $p_obj               目标实例
-     * @return [type]        [description]
+     * @return
      */
     public static function setObj($p_key,$p_obj,$p_expire=3600){
         static::setCache($p_key,serialize($p_obj),$p_expire);
@@ -348,42 +343,48 @@ class W2Redis {
         return false;
     }
 
-    /** 进程级变量，追加临时存储需要清理的缓存池key，页面请求成功完成后统一清理，一般用于数据更新后清理对应的缓存池。（需要另写方法辅助） */
-    public static function clearCachedKeyPoolListPush($p_key)
-    {
-        static::$clearCachedKeyPoolList[]=$p_key;
-    }
 
-    /** 进程级变量，追加临时存储需要清理的缓存key，页面请求成功完成后统一清理，一般用于数据更新后清理对应的缓存。（需要另写方法辅助） */
-    public static function clearCachedKeyListPush($p_key)
+    /*---------单进程缓存池逻辑处理----------------*/
+    /**
+     *  记录本次请求过程中用过的缓存key
+     * @param  integer $p_expire 过期时间
+     * @return string $etag 为本次请求进程生成特征码
+     */
+    public static function etagOfRequest($p_expire=500)
     {
-        static::$clearCachedKeyList[]=$p_key;
-    }
-
-    /** 进程级变量，追加临时存储需要备案的缓存池key，页面请求成功完成后统一将页面key在这些缓存池中备案。（需要另写方法辅助） */
-    public static function canBeCachedKeyPoolListPush($p_key)
-    {
-        static::$canBeCachedKeyPoolList[]=$p_key;
-    }
-
-    /** 进程级变量，记录本次请求过程中用过的缓存key */
-    public static function cachedKeyGotListPush($p_key)
-    {
-        static::$cachedKeyGotList[]=$p_key;
-    }
-
-    /** 在指定页面池增加缓存key，所谓页面池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于查询指定的页面。*/
-    public static function addToCachePagePool($p_pagePool,$p_key,$p_expire=3600)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached,$p_pagePool, $p_key)) {
-            $memcached -> lpush( $p_pagePool.'_pagepool', $p_key );
-            if ($p_expire>0)
-            {
-                $memcached -> EXPIRE( $p_pagePool.'_pagepool', $p_expire );
-            }
+        $etag = null;
+        $uniqueList = array_unique(static::$requestCacheKeys);
+        if (count($uniqueList) > 0)
+        {
+            sort($uniqueList, SORT_STRING);
+            $buffer = serialize($uniqueList);
+            $etag = md5($buffer);
+            $p_key = 'etag_' . $etag;
+            static::setCache($p_key,$buffer,$p_expire);
         }
+        return $etag;
     }
+
+    // 判断特征码对应缓存列表是否有效，任一缓存key失效，则该特征码不可用
+    public static function isEtagCanBeUsed($etag,$p_expire=500)
+    {
+        $p_key = 'etag_' . $etag;
+        $requestCacheKeys = static::getObj($p_key);
+        if (is_array($requestCacheKeys))
+        {
+            foreach ($requestCacheKeys as $cacheKey) {
+                if (!static::isCacheCanBeUsed($cacheKey,$p_expire,false))
+                {
+                    AX_DEBUG('etag缓存失效：'.$cacheKey);
+                    static::delCache($p_key);
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
 
     // public static function get
 
