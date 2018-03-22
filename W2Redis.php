@@ -88,7 +88,7 @@ class W2Redis {
      * @param  integer $p_timeout               过期时间
      * @return string                           缓存内容或null或304 Not Modified
      */
-    public static function getCache($p_key,$p_timeout=300)
+    public static function getCache($p_key,$p_timeout=3600)
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
@@ -123,7 +123,7 @@ class W2Redis {
      * @param  integer $p_timeout               过期时间
      * @return object
      */
-    public static function getObj($p_key,$p_timeout=300)
+    public static function getObj($p_key,$p_timeout=3600)
     {
         $_data = static::getCache($p_key,$p_timeout);
         if ($_data!==false && $_data!==null)
@@ -213,7 +213,7 @@ class W2Redis {
      * @param  bool    $lockIfTimeout              如果过期是否加更新锁（加更新锁后，120秒内其他人仍用旧缓存）
      * @return boolean                          是，否
      */
-    public static function isCacheCanBeUsed($p_key,$p_timeout=300,$lockIfTimeout=true)
+    public static function isCacheCanBeUsed($p_key,$p_timeout=3600,$lockIfTimeout=true)
     {
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
@@ -291,7 +291,7 @@ class W2Redis {
      * @param  integer $p_expire 过期时间
      * @return string $etag 为本次请求进程生成特征码
      */
-    public static function etagOfRequest($p_expire=500)
+    public static function etagOfRequest($p_expire=3600)
     {
         $etag = null;
         $uniqueList = array_unique(static::$requestCacheKeys);
@@ -307,7 +307,7 @@ class W2Redis {
     }
 
     // 判断特征码对应缓存列表是否有效，任一缓存key失效，则该特征码不可用
-    public static function isEtagCanBeUsed($etag,$p_expire=500)
+    public static function isEtagCanBeUsed($etag,$p_expire=3600)
     {
         $p_key = 'etag_' . $etag;
         $requestCacheKeys = static::getObj($p_key);
