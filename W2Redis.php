@@ -61,32 +61,25 @@ class W2Redis {
     }
 
 
-    /** 缓存服务器状态 */
-    public static function info()
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached)) {
-            return $memcached->INFO();
-        }
-        return null;
-    }
 
     /**
-     * 重置 INFO 命令中的某些统计数据，包括：
-     *  Keyspace hits (键空间命中次数)
-     *  Keyspace misses (键空间不命中次数)
-     *  Number of commands processed (执行命令的次数)
-     *  Number of connections received (连接服务器的次数)
-     *  Number of expired keys (过期key的数量)
-     * @return 总是返回 OK 。
+     * 最强搭档，更新缓存到指定Key，如果有必要
+     * @param  string  $p_key                   缓存key
+     * @param  [type] $buffer                  [description]
+     * @return null
      */
-    public static function resetStat()
-    {
+    public static function setCache($p_key,$buffer,$p_expire=3600){
         $memcached = static::memFactory();
-        if (isset($memcached)) {
-            return $memcached->resetStat();
+        if (isset($memcached, $p_key)) {
+            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
+            $_time = time();
+            if ($p_expire>0)
+            {
+                $memcached -> SETEX($p_key.'_data',$p_expire,$buffer);
+                $memcached -> SETEX($p_key.'_time',$p_expire,$_time);
+            }
+            $memcached -> del($p_key.'_timelock');//更新缓存时，删除缓存更新的锁
         }
-        return null;
     }
 
     /**
@@ -111,6 +104,106 @@ class W2Redis {
             }
         }
         return null;
+    }
+
+
+    /**
+     * 存储实例，实则是将实例转化成字符串后存储缓存
+     * @param  string  $p_key                   缓存key
+     * @param  object $p_obj               目标实例
+     * @return
+     */
+    public static function setObj($p_key,$p_obj,$p_expire=3600){
+        static::setCache($p_key,serialize($p_obj),$p_expire);
+    }
+
+    /**
+     * 读取实例，实则是读取缓存的变身，只是读取出字符串后，编译成php对象
+     * @param  string  $p_key                   缓存key
+     * @param  integer $p_timeout               过期时间
+     * @return object
+     */
+    public static function getObj($p_key,$p_timeout=300)
+    {
+        $_data = static::getCache($p_key,$p_timeout);
+        if ($_data!==false && $_data!==null)
+        {
+            return unserialize($_data);
+        }
+        return null;
+    }
+
+    /**
+     * 将key中储存的数字值增一。
+     * 如果key不存在，以0为key的初始值，然后执行INCR操作。
+     * 如果值包含错误的类型，或字符串类型的值不能表示为数字，那么返回一个错误。
+     * @param  string $p_key
+     * @param  int   $increment  增值，默认1
+     * @return int   执行INCR命令之后key的值。
+     */
+    public static function incr($p_key,$increment=1,$p_expire=3600)
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached, $p_key)) {
+            if ($p_expire>0)
+            {
+                $memcached -> EXPIRE( $p_key.'_incr', $p_expire );
+            }
+            return $memcached -> incrby($p_key.'_incr',$increment);
+        }
+        return false;
+    }
+
+    /** 在指定缓存池增加缓存key，所谓缓存池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于多个缓存共同触发更新。*/
+    public static function addToCacheKeyPool($p_keyPool,$p_key,$p_expire=3600)
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached,$p_keyPool, $p_key)) {
+            $memcached -> lpush( $p_keyPool.'_keypool', $p_key );
+            if ($p_expire>0)
+            {
+                $memcached -> EXPIRE( $p_keyPool.'_keypool', $p_expire );
+            }
+        }
+    }
+
+
+    /** 重置指定缓存池里的所有key，如上所说，缓存池就是用来重置的。此处重置。一般是这样，我们将某个列表的缓存放入列表中各元素独立的缓存池里，一旦某个元素更新，就主动重置其对应的独立缓存池，就可以达到列表类缓存的实时更新了。 */
+    public static function resetCacheKeyPool($p_keyPool)
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached, $p_keyPool)) {
+            $keysList = $memcached -> lGetRange( $p_keyPool.'_keypool',0,-1);
+            foreach ($keysList as $_key => $p_key) {
+                static::resetCache($p_key);
+            }
+            $memcached -> del( $p_keyPool.'_keypool');
+        }
+        return null;
+    }
+
+    /** 重置缓存 所谓重置缓存，就是设_timelock为1，并不是真的清理缓存，只有当下次下个用户请求对应的缓存数据的时候，才会覆盖更新缓存。（注意，是覆盖更新，如果有并发读取的情况，旧的缓存仍然会被用到哦）*/
+    public static function resetCache($p_key)
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached, $p_key)) {
+            $memcached -> SETEX( $p_key.'_timelock',600, 1 );
+        }
+    }
+
+    /**
+     * 删除缓存（慎用）
+     * @param  string  $p_key                   缓存key
+     * @return null
+     */
+    public static function delCache($p_key){
+        $memcached = static::memFactory();
+        if (isset($memcached, $p_key)) {
+            $_time = time();
+            $memcached -> del($p_key.'_data');
+            $memcached -> del($p_key.'_time');
+            $memcached -> del($p_key.'_timelock');
+        }
     }
 
     /**
@@ -151,185 +244,6 @@ class W2Redis {
         return false;//没有可用的缓存，请重新生成吧
     }
 
-    /**
-     * 判断缓存标识对应的缓存是否还在。判断指定key是否有变化，若有变化，则更新新的标识
-     * @param  string  $p_key                   缓存key
-     * @param  [type]  &$HTTP_IF_MODIFIED_SINCE HTTP_IF_MODIFIED_SINCE
-     * @param  [type]  &$HTTP_IF_NONE_MATCH     HTTP_IF_NONE_MATCH
-     * @return boolean                          是，否
-     */
-    public static function isModified($p_key,&$HTTP_IF_MODIFIED_SINCE=null,&$HTTP_IF_NONE_MATCH=null)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_key)) {
-            $_time = $memcached->get($p_key.'_time');
-            if ($_time!==false){
-                // 判断缓存标识对应的缓存是否还在。
-
-                // 如果用户请求判断$HTTP_IF_NONE_MATCH，则提取$etag并比对，
-                // 如果缓存没有变化，则重写变量为false(缓存没有改变)，
-                // 如果缓存有变化，则重写变量为新缓存关键字。
-                if (isset($HTTP_IF_NONE_MATCH))
-                {
-                    if ($HTTP_IF_NONE_MATCH===false)
-                    {
-                        throw new Exception("此处不允许传入参数HTTP_IF_NONE_MATCH为false");
-
-                    }
-                    $etag = md5($_time);
-                    if ($HTTP_IF_NONE_MATCH == $etag)//这里用Last-Modified的header标识来进行客户端的缓存控制。
-                    {
-                        return false;//缓存没变化哦，可以考虑直接304的说。
-                    }
-                    else
-                    {
-                        $HTTP_IF_NONE_MATCH = $etag;
-                    }
-                }
-                // 如果用户请求判断$HTTP_IF_MODIFIED_SINCE，则提取$eLastModified并比对最后修改时间，
-                // 如果缓存没有变化，则重写变量为false(缓存没有改变)，
-                // 如果缓存有变化，则重写变量为最新最后修改时间。
-                if (isset($HTTP_IF_MODIFIED_SINCE))
-                {
-                    if ($HTTP_IF_MODIFIED_SINCE===false)
-                    {
-                        throw new Exception("此处不允许传入参数HTTP_IF_MODIFIED_SINCE为false");
-
-                    }
-                    $eLastModified = gmdate('D, d M Y H:i:s \G\M\T', $_time);
-                    if ($HTTP_IF_MODIFIED_SINCE == $eLastModified)//这里用Last-Modified的header标识来进行客户端的缓存控制。
-                    {
-                        return false;//缓存没变化哦，可以考虑直接304的说。
-                    }
-                    else
-                    {
-                        $HTTP_IF_MODIFIED_SINCE = $eLastModified;
-                    }
-                }
-            }
-        }
-        return true;//服务器的缓存已经更新了，请重新读取。
-    }
-
-    /**
-     * 最强搭档，更新缓存到指定Key，如果有必要
-     * @param  string  $p_key                   缓存key
-     * @param  [type] $buffer                  [description]
-     * @return null
-     */
-    public static function setCache($p_key,$buffer,$p_expire=3600){
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_key)) {
-            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
-            $_time = time();
-            if ($p_expire>0)
-            {
-                $memcached -> SETEX($p_key.'_data',$p_expire,$buffer);
-                $memcached -> SETEX($p_key.'_time',$p_expire,$_time);
-            }
-            $memcached -> del($p_key.'_timelock');//更新缓存时，删除缓存更新的锁
-        }
-    }
-
-    /**
-     * 删除缓存（慎用）
-     * @param  string  $p_key                   缓存key
-     * @return null
-     */
-    public static function delCache($p_key){
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_key)) {
-            $_time = time();
-            $memcached -> del($p_key.'_data');
-            $memcached -> del($p_key.'_time');
-            $memcached -> del($p_key.'_timelock');
-        }
-    }
-
-    /**
-     * 读取实例，实则是读取缓存的变身，只是读取出字符串后，编译成php对象
-     * @param  string  $p_key                   缓存key
-     * @param  integer $p_timeout               过期时间
-     * @return object
-     */
-    public static function getObj($p_key,$p_timeout=300)
-    {
-        $_data = static::getCache($p_key,$p_timeout);
-        if ($_data!==false && $_data!==null)
-        {
-            return unserialize($_data);
-        }
-        return null;
-    }
-
-    /**
-     * 存储实例，实则是将实例转化成字符串后存储缓存
-     * @param  string  $p_key                   缓存key
-     * @param  object $p_obj               目标实例
-     * @return
-     */
-    public static function setObj($p_key,$p_obj,$p_expire=3600){
-        static::setCache($p_key,serialize($p_obj),$p_expire);
-    }
-
-    /**
-     * 将key中储存的数字值增一。
-     * 如果key不存在，以0为key的初始值，然后执行INCR操作。
-     * 如果值包含错误的类型，或字符串类型的值不能表示为数字，那么返回一个错误。
-     * @param  string $p_key
-     * @param  int   $increment  增值，默认1
-     * @return int   执行INCR命令之后key的值。
-     */
-    public static function incr($p_key,$increment=1,$p_expire=3600)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_key)) {
-            if ($p_expire>0)
-            {
-                $memcached -> EXPIRE( $p_key.'_incr', $p_expire );
-            }
-            return $memcached -> incrby($p_key.'_incr',$increment);
-        }
-        return false;
-    }
-
-
-    /** 在指定缓存池增加缓存key，所谓缓存池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于多个缓存共同触发更新。*/
-    public static function addToCacheKeyPool($p_keyPool,$p_key,$p_expire=3600)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached,$p_keyPool, $p_key)) {
-            $memcached -> lpush( $p_keyPool.'_keypool', $p_key );
-            if ($p_expire>0)
-            {
-                $memcached -> EXPIRE( $p_keyPool.'_keypool', $p_expire );
-            }
-        }
-    }
-
-    /** 重置缓存 所谓重置缓存，就是设_timelock为1，并不是真的清理缓存，只有当下次下个用户请求对应的缓存数据的时候，才会覆盖更新缓存。（注意，是覆盖更新，如果有并发读取的情况，旧的缓存仍然会被用到哦）*/
-    public static function resetCache($p_key)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_key)) {
-            $memcached -> SETEX( $p_key.'_timelock',600, 1 );
-        }
-    }
-
-    /** 重置指定缓存池里的所有key，如上所说，缓存池就是用来重置的。此处重置。一般是这样，我们将某个列表的缓存放入列表中各元素独立的缓存池里，一旦某个元素更新，就主动重置其对应的独立缓存池，就可以达到列表类缓存的实时更新了。 */
-    public static function resetCacheKeyPool($p_keyPool)
-    {
-        $memcached = static::memFactory();
-        if (isset($memcached, $p_keyPool)) {
-            $keysList = $memcached -> lGetRange( $p_keyPool.'_keypool',0,-1);
-            foreach ($keysList as $_key => $p_key) {
-                static::resetCache($p_key);
-            }
-            $memcached -> del( $p_keyPool.'_keypool');
-        }
-        return null;
-    }
-
     /** 重置所有缓存，慎用。 */
     public static function emptyCache()
     {
@@ -341,6 +255,33 @@ class W2Redis {
             return $memcached -> FLUSHDB();//清空当前数据库
         }
         return false;
+    }
+    /**
+     * 重置 INFO 命令中的某些统计数据，包括：
+     *  Keyspace hits (键空间命中次数)
+     *  Keyspace misses (键空间不命中次数)
+     *  Number of commands processed (执行命令的次数)
+     *  Number of connections received (连接服务器的次数)
+     *  Number of expired keys (过期key的数量)
+     * @return 总是返回 OK 。
+     */
+    public static function resetStat()
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached)) {
+            return $memcached->resetStat();
+        }
+        return null;
+    }
+
+    /** 缓存服务器状态 */
+    public static function info()
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached)) {
+            return $memcached->INFO();
+        }
+        return null;
     }
 
 
