@@ -377,6 +377,12 @@ class W2Redis {
                 {
                     AX_DEBUG('etag缓存失效：'.$cacheKey);
                     static::delCache($p_key);
+                    //删除的key不算当前进程使用key
+                    $index = array_search($p_key,static::$requestCacheKeys);
+                    if ($index>=0)
+                    {
+                        array_splice(static::$requestCacheKeys, $index, 1);
+                    }
                     return false;
                 }
             }
