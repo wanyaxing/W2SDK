@@ -154,6 +154,29 @@ class W2Redis {
         return false;
     }
 
+    /**
+     * 从key中储存的数字值减一，如不存在key或减一后小于0 ，则返回false;
+     * @param  string $p_key
+     * @return int   执行decr命令之后key的值或false
+     */
+    public static function decr($p_key)
+    {
+        $memcached = static::memFactory();
+        if (isset($memcached, $p_key)) {
+            if ($memcached->exists($p_key.'_incr'))
+            {
+                $v = $memcached -> decr($p_key.'_incr');
+                if ($v<0)
+                {
+                    $memcached -> del($p_key.'_incr');
+                    return false;
+                }
+                return $v;
+            }
+        }
+        return false;
+    }
+
     /** 在指定缓存池增加缓存key，所谓缓存池，其实是一个特殊数据的存储，其内容是N个缓存key，所以称之为池。其主要用于多个缓存共同触发更新。*/
     public static function addToCacheKeyPool($p_keyPool,$p_key,$p_expire=3600)
     {
