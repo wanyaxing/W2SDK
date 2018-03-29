@@ -71,13 +71,13 @@ class W2Redis {
     public static function setCache($p_key,$buffer,$p_expire=3600){
         $memcached = static::memFactory();
         if (isset($memcached, $p_key)) {
-            static::$requestCacheKeys[]=$p_key;//记录本次请求中取过的key
             $_time = time();
             if ($p_expire>0)
             {
                 $memcached -> SETEX($p_key.'_data',$p_expire,$buffer);
                 $memcached -> SETEX($p_key.'_time',$p_expire,$_time);
             }
+            static::$requestCacheKeys[$p_key]=$_time;//记录本次请求中取过的key和生成时间
             $memcached -> del($p_key.'_timelock');//更新缓存时，删除缓存更新的锁
         }
     }
@@ -94,7 +94,7 @@ class W2Redis {
         if (isset($memcached, $p_key)) {
             if (static::isCacheCanBeUsed($p_key,$p_timeout))
             {
-                static::$requestCacheKeys[]=$p_key;//记录本次请求中可用的取出的key
+                static::$requestCacheKeys[$p_key]=$memcached->get($p_key.'_time');//记录本次请求中取过的key和生成时间
                 //有可用的缓存，取出缓存给ta就是。
                 $_data = $_time = $memcached->get($p_key.'_data');
                 if ($_data!==false)
@@ -316,41 +316,34 @@ class W2Redis {
      */
     public static function etagOfRequest($p_expire=3600)
     {
-        $etag = null;
-        $uniqueList = array_unique(static::$requestCacheKeys);
-        if (count($uniqueList) > 0)
-        {
-            sort($uniqueList, SORT_STRING);
-            $buffer = serialize($uniqueList);
-            $etag = md5($buffer);
-            $p_key = 'etag_' . $etag;
-            static::setCache($p_key,$buffer,$p_expire);
-        }
+        $buffer = serialize(static::$requestCacheKeys);
+        $etag = md5($buffer);
+        $p_key = 'etag_' . $etag;
+        static::setCache($p_key,$buffer,$p_expire);
         return $etag;
     }
 
     // 判断特征码对应缓存列表是否有效，任一缓存key失效，则该特征码不可用
     public static function isEtagCanBeUsed($etag,$p_expire=3600)
     {
-        $p_key = 'etag_' . $etag;
-        $requestCacheKeys = static::getObj($p_key);
-        if (is_array($requestCacheKeys))
-        {
-            foreach ($requestCacheKeys as $cacheKey) {
-                if (!static::isCacheCanBeUsed($cacheKey,$p_expire,false))
-                {
-                    AX_DEBUG('etag缓存失效：'.$cacheKey);
-                    static::delCache($p_key);
-                    //删除的key不算当前进程使用key
-                    $index = array_search($p_key,static::$requestCacheKeys);
-                    if ($index>=0)
+        $memcached = static::memFactory();
+        if (isset($memcached)) {
+            $p_key = 'etag_' . $etag;
+            $requestCacheKeys = static::getObj($p_key);
+            if (is_array($requestCacheKeys))
+            {
+                foreach ($requestCacheKeys as $cacheKey=>$cacheTime) {
+                    if ( $cacheTime != $memcached->get($cacheKey.'_time') || !static::isCacheCanBeUsed($cacheKey,$p_expire,false) )
                     {
-                        array_splice(static::$requestCacheKeys, $index, 1);
+                        AX_DEBUG('etag缓存失效：'.$cacheKey);
+                        static::delCache($p_key);
+                        //删除的key不算当前进程使用key
+                        unset(static::$requestCacheKeys[$p_key]);
+                        return false;
                     }
-                    return false;
                 }
+                return true;
             }
-            return true;
         }
         return false;
     }
