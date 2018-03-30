@@ -314,21 +314,21 @@ class W2Redis {
      * @param  integer $p_expire 过期时间
      * @return string $etag 为本次请求进程生成特征码
      */
-    public static function etagOfRequest($p_expire=3600)
+    public static function etagOfRequest($prefix=0,$p_expire=3600)
     {
         $buffer = serialize(static::$requestCacheKeys);
         $etag = md5($buffer);
-        $p_key = 'etag_' . $etag;
+        $p_key = 'etag_' . $prefix. '_' . $etag;
         static::setCache($p_key,$buffer,$p_expire);
         return $etag;
     }
 
     // 判断特征码对应缓存列表是否有效，任一缓存key失效，则该特征码不可用
-    public static function isEtagCanBeUsed($etag,$p_expire=3600)
+    public static function isEtagCanBeUsed($etag,$prefix=0,$p_expire=3600)
     {
         $memcached = static::memFactory();
         if (isset($memcached)) {
-            $p_key = 'etag_' . $etag;
+            $p_key = 'etag_' . $prefix. '_' . $etag;
             $requestCacheKeys = static::getObj($p_key);
             if (is_array($requestCacheKeys))
             {
