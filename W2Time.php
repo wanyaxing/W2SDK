@@ -18,26 +18,33 @@ class W2Time {
     {
         if ($p_time===null || $p_time=='time()')
         {
-            $p_time = time();
+            return time();
         }
-        $time = null;
-        if (W2String::is_int($p_time) && strlen($p_time)>=8  )
+        else
         {
-            if (strlen($p_time)>=12)
+            $time = null;
+            if (W2String::is_int($p_time) && strlen($p_time)==13 )
             {
-                $p_time = substr($p_time,0,-3);
+                $p_time = substr($p_time,0,10);
             }
-            $time = intval($p_time);
+            if (W2String::is_int($p_time) && strtotime(date('Y-m-d H:i:s',$p_time))==$p_time )
+            {
+                $time = intval($p_time);
+            }
+            else if ((is_string($p_time) || is_numeric($p_time)) && strtotime(date('Y-m-d H:i:s',strtotime($p_time))) == strtotime($p_time) )
+            {
+                $time = strtotime($p_time);
+            }
+            else if (is_subclass_of($p_time,'DateTime'))
+            {
+                $time = $p_time->getTimestamp();
+            }
+            else
+            {
+                return time();
+            }
+            return $time;
         }
-        else if (is_string($p_time))
-        {
-            $time = strtotime($p_time);
-        }
-        else if (is_subclass_of($p_time,'DateTime'))
-        {
-            $time = $p_time->getTimestamp();
-        }
-        return $time;
     }
 
     /**
@@ -114,6 +121,18 @@ class W2Time {
             return W2Time::getTimestamp($p_time) + W2Time::getTimestamp($p_add);
         }
         return W2Time::getTimestamp(W2Time::timetostr($p_time) . ' ' .$p_add);
+    }
+
+    /** 获得下一天 */
+    public static function getNextDay($p_time=null)
+    {
+        return W2Time::timetostr(W2Time::getTimeAdded($p_time,'+1 day') ,'Y-m-d');
+    }
+
+    /** 获得前一天 */
+    public static function getPrevDay($p_time=null)
+    {
+        return W2Time::timetostr(W2Time::getTimeAdded($p_time,'-1 day') ,'Y-m-d');
     }
 
     /**
@@ -201,6 +220,18 @@ class W2Time {
             case 'month':
                 $p_step   = '+1 month';
                 $tmp_format = 'Y-m';
+                break;
+            case 'doubleMonth':
+                $p_step   = '+2 month';
+                $tmp_format = 'Y-m';
+                break;
+            case 'quarter':
+                $p_step   = '+3 month';
+                $tmp_format = 'Y-m-d';
+                break;
+            case 'halfyear':
+                $p_step   = '+6 month';
+                $tmp_format = 'Y-m-d';
                 break;
             case 'year':
                 $p_step   = '+1 year';
@@ -362,6 +393,29 @@ class W2Time {
         return W2Time::timetostr((W2Time::getTimeAdded(W2Time::timetostr($p_time,'Y-m-1'),'+1 month') - 1),'Y-m-d');
     }
 
+    /** 指定日期的下个月的第一天 */
+    public static function getFirstDayInNextMonth($p_time=null)
+    {
+        return W2Time::timetostr(W2Time::getTimeAdded($p_time,'+1 month') ,'Y-m-1');
+    }
+
+    /** 指定日期的下个月的最后一天 */
+    public static function getLastDayInNextMonth($p_time=null)
+    {
+        return static::getLastDayInSameMonth(W2Time::getTimeAdded($p_time,'+1 month'));
+    }
+
+    /** 指定日期的上个月的第一天 */
+    public static function getFirstDayInPrevMonth($p_time=null)
+    {
+        return W2Time::timetostr(W2Time::getTimeAdded($p_time,'-1 month') ,'Y-m-1');
+    }
+
+    /** 指定日期的上个月的最后一天 */
+    public static function getLastDayInPrevMonth($p_time=null)
+    {
+        return static::getLastDayInSameMonth(W2Time::getTimeAdded($p_time,'-1 month'));
+    }
     /**
      * 获得指定时间所在当年的第一天的日期 Y-m-d
      * @param  [type] $p_time [description]
