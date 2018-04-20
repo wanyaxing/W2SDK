@@ -27,13 +27,16 @@ class W2Time {
             {
                 $p_time = substr($p_time,0,10);
             }
-            if (W2String::is_int($p_time) && strtotime(date('Y-m-d H:i:s',$p_time))==$p_time )
-            {
-                $time = intval($p_time);
-            }
-            else if ((is_string($p_time) || is_numeric($p_time)) && strtotime(date('Y-m-d H:i:s',strtotime($p_time))) == strtotime($p_time) )
+            if (strtotime($p_time)!=false && strtotime(date('Y-m-d H:i:s',strtotime($p_time))) == strtotime($p_time) )
             {
                 $time = strtotime($p_time);
+            }
+            else if (W2String::is_int($p_time) )
+            {
+                // if (strtotime(date('Y-m-d H:i:s',$p_time))==$p_time)
+                // {
+                    $time = intval($p_time);
+                // }
             }
             else if (is_subclass_of($p_time,'DateTime'))
             {
