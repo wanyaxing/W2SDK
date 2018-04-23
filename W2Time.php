@@ -27,16 +27,24 @@ class W2Time {
             {
                 $p_time = substr($p_time,0,10);
             }
-            if (strtotime($p_time)!=false && strtotime(date('Y-m-d H:i:s',strtotime($p_time))) == strtotime($p_time) )
+            $strtotime = strtotime($p_time);
+            if (W2String::is_int($p_time) )
             {
-                $time = strtotime($p_time);
-            }
-            else if (W2String::is_int($p_time) )
-            {
+                if ($p_time>=19700101 && $p_time<=20991231 && strtotime(date('Y-m-d H:i:s',$strtotime)) == $strtotime)
+                {//1970 - 2099
+                    $time = $strtotime;
+                }
+                else
+                {
+                    $time = intval($p_time);
+                }
                 // if (strtotime(date('Y-m-d H:i:s',$p_time))==$p_time)
                 // {
-                    $time = intval($p_time);
                 // }
+            }
+            else if (strtotime(date('Y-m-d H:i:s',$strtotime)) == $strtotime )
+            {
+                $time = $strtotime;
             }
             else if (is_subclass_of($p_time,'DateTime'))
             {
