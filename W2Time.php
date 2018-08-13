@@ -456,7 +456,7 @@ class W2Time {
     {
         $w = W2Time::timetostr($p_time,'w');
         $w = ($w==0?7:$w);
-        return W2Time::timetostr((W2Time::getTimeAdded(W2Time::timetostr($p_time,'Y-m-d'),'-'.(($w-1)).' day')),'Y-m-d');
+        return W2Time::timetostr((W2Time::getTimeAdded($p_time,'-'.(($w-1)).' day')),'Y-m-d');
     }
 
     /**
@@ -468,7 +468,50 @@ class W2Time {
     {
         $w = W2Time::timetostr($p_time,'w');
         $w = ($w==0?7:$w);
-        return W2Time::timetostr((W2Time::getTimeAdded(W2Time::timetostr($p_time,'Y-m-d'),'+'.(7-($w-1)).' day'))-1,'Y-m-d');
+        return W2Time::timetostr((W2Time::getTimeAdded($p_time,'+'.(7-($w-1)).' day'))-1,'Y-m-d');
+    }
+
+    /**
+     * 获得指定时间所在当季的第一天的日期 Y-m-d
+     * @param  [type] $p_time [description]
+     * @return string             格式 Y-m-d
+     */
+    public static function getFirstDayInSameQuarter($p_time=null)
+    {
+        $m = W2Time::timetostr($p_time,'m');
+        return W2Time::timetostr((W2Time::getTimeAdded($p_time,'-'.((($m%3==0?3:$m%3) - 1)).' month')),'Y-m-1');
+    }
+
+    /**
+     * 获得指定时间所在当季的最后一天的日期 Y-m-d
+     * @param  [type] $p_time [description]
+     * @return string             格式 Y-m-d
+     */
+    public static function getLastDayInSameQuarter($p_time=null)
+    {
+        $m = W2Time::timetostr($p_time,'m');
+        return W2Time::getLastDayInSameMonth(W2Time::getTimeAdded($p_time,'+'.(3-($m%3==0?3:$m%3)).' month'));
+    }
+    /**
+     * 获得指定时间所在当前所在半年的第一天的日期 Y-m-d
+     * @param  [type] $p_time [description]
+     * @return string             格式 Y-m-d
+     */
+    public static function getFirstDayInSameHalfYear($p_time=null)
+    {
+        $m = W2Time::timetostr($p_time,'m');
+        return W2Time::timetostr((W2Time::getTimeAdded($p_time,'-'.((($m%6==0?6:$m%6) - 1)).' month')),'Y-m-1');
+    }
+
+    /**
+     * 获得指定时间所在当前所在半年的最后一天的日期 Y-m-d
+     * @param  [type] $p_time [description]
+     * @return string             格式 Y-m-d
+     */
+    public static function getLastDayInSameHalfYear($p_time=null)
+    {
+        $m = W2Time::timetostr($p_time,'m');
+        return W2Time::getLastDayInSameMonth(W2Time::getTimeAdded($p_time,'+'.(6-($m%6==0?6:$m%6)).' month'));
     }
 
 }
