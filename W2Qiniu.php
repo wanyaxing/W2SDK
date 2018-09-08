@@ -195,12 +195,9 @@ class W2Qiniu {
 
 		Qiniu_SetKeys(static::$Qiniu_accessKey, static::$Qiniu_secretKey);
 
-		$getPolicy = new Qiniu_RS_GetPolicy();
-
-		$getPolicy->Expires = 3600;
-
-		$privateUrl = $getPolicy->MakeRequest($baseUrl, null);
-
+		$baseUrl .= (strpos($baseUrl, '?')!==false?'&':'?').'e='.(W2Time::strtotime(date('Y-m-d 23:59:59')));
+		$token = Qiniu_Sign(null, $baseUrl);
+		$privateUrl = $baseUrl . '&token=' . $token;
 		return $privateUrl;
 	}
 
