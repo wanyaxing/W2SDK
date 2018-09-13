@@ -27,6 +27,31 @@ class W2Time {
             {
                 $p_time = substr($p_time,0,10);
             }
+            $p_time = preg_replace_callback('/^(\d{4})[^\d]{0,1}(\d{1,2})[^\d]{0,1}(\d{1,2})[^\d]{0,1}(\d{1,2})[^\d]{0,1}(\d{1,2})[^\d]{0,1}(\d{1,2})$/',function($matches){
+                if (
+                       $matches[1]>=1970 && $matches[1]<=2999
+                    && $matches[2]>=1 && $matches[2]<=12
+                    && $matches[3]>=1 && $matches[3]<=31
+                    && $matches[4]>=0 && $matches[4]<=24
+                    && $matches[5]>=0 && $matches[5]<=60
+                    && $matches[6]>=0 && $matches[6]<=60
+                )
+                {
+                    return $matches[1] . '-' . $matches[2] . '-' . $matches[3]  . ' ' . $matches[4] . ':' . $matches[5]. ':' . $matches[6] ;
+                }
+                return $matches[0];
+            },$p_time);
+            $p_time = preg_replace_callback('/^(\d{4})[^\d]{0,1}(\d{1,2})[^\d]{0,1}(\d{1,2})$/',function($matches){
+                if (
+                       $matches[1]>=1970 && $matches[1]<=2999
+                    && $matches[2]>=1 && $matches[2]<=12
+                    && $matches[3]>=1 && $matches[3]<=31
+                )
+                {
+                    return $matches[1] . '-' . $matches[2] . '-' . $matches[3];
+                }
+                return $matches[0];
+            },$p_time);
             $strtotime = strtotime($p_time);
             if (W2String::is_int($p_time) )
             {
