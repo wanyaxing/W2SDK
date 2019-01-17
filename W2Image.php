@@ -419,6 +419,25 @@ class W2Image {
         // return urlencode($content);
     }
 
+    /**
+     * [qrcode description]
+     * @param  [type]  $text   [description]
+     * @param  integer $level  容错级别 0,1,2,3
+     * @param  integer $size   大小
+     * @param  integer $margin 边距
+     * @return string          文本字节码
+     */
+    public static function qrcodeBase64($text,$level=3, $size=3, $margin=4)
+    {
+        if(!class_exists('QRcode'))
+        {
+            include __dir__ .'/phpqrcode.php';
+        }
+        ob_start();
+        QRCode::png($text,null,$level,$size,$margin);
+        $content = 'data:image/png;base64,'.base64_encode(ob_get_clean());
+        return $content;
+    }
 }
 
 /**
